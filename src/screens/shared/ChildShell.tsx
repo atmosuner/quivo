@@ -80,21 +80,24 @@ export function ChildShell() {
         <RecoveryBanner message={recoveryNotice} onDismiss={dismissRecoveryNotice} />
       )}
 
-      {isLoading && (
-        <div className="q-scroll">
-          <div className="q-body" style={{ paddingTop: 80 }}>
-            <div className="t-body">Loading family data…</div>
+      <div className="q-main">
+        {isLoading && (
+          <div className="q-scroll">
+            <div className="q-body" style={{ paddingTop: 80 }}>
+              <div className="t-body">Loading family data…</div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {!isLoading && snapshot && !getActiveChild(snapshot.family) && <NoActiveChild />}
+        {!isLoading && snapshot && !getActiveChild(snapshot.family) && <NoActiveChild />}
 
-      {!isLoading && snapshot && getActiveChild(snapshot.family) && (
-        <>
+        {!isLoading && snapshot && getActiveChild(snapshot.family) && !topStack && (
           <ChildTabContent tab={activeTab} />
-          {!topStack && <TabBar active={activeTab} onTab={setActiveTab} />}
-        </>
+        )}
+      </div>
+
+      {!isLoading && snapshot && getActiveChild(snapshot.family) && !topStack && (
+        <TabBar active={activeTab} onTab={setActiveTab} />
       )}
 
       {error && !isLoading && (

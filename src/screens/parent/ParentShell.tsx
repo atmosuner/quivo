@@ -29,9 +29,11 @@ export function ParentShell() {
   if (isLoading) {
     return (
       <div className="q-app">
-        <div className="q-scroll">
-          <div className="q-body" style={{ paddingTop: 80 }}>
-            <div className="t-body">Loading family data…</div>
+        <div className="q-main">
+          <div className="q-scroll">
+            <div className="q-body" style={{ paddingTop: 80 }}>
+              <div className="t-body">Loading family data…</div>
+            </div>
           </div>
         </div>
       </div>
@@ -42,9 +44,11 @@ export function ParentShell() {
 
   return (
     <div className="q-app">
-      {parentScreen === 'dash' && <ParentDashboard />}
-      {parentScreen === 'approval' && <ApprovalScreen />}
-      {parentScreen === 'addtask' && <AddTaskScreen />}
+      <div className="q-main">
+        {parentScreen === 'dash' && <ParentDashboard />}
+        {parentScreen === 'approval' && <ApprovalScreen />}
+        {parentScreen === 'addtask' && <AddTaskScreen />}
+      </div>
       {error && (
         <ActionErrorBanner message={error} onDismiss={clearError} tabbed={false} />
       )}

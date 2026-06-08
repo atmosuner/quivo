@@ -23,7 +23,7 @@ export function ActionErrorBanner({
         left: 16,
         right: 16,
         bottom: tabbed
-          ? 'calc(100px + var(--safe-bottom))'
+          ? 'calc(var(--tabbar-occupied) + 8px)'
           : 'calc(16px + var(--safe-bottom))',
         zIndex: 45,
         padding: '12px 14px',

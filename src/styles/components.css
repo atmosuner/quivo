@@ -2,10 +2,15 @@
    QUIVO — Component styles (ported from /design/styles.css)
    ============================================================ */
 
-/* App shell */
+/* App shell — locked to viewport; inner regions scroll */
 .q-app {
   position: relative;
+  width: 100%;
+  height: 100%;
   min-height: 100dvh;
+  min-height: 100svh;
+  max-height: 100dvh;
+  max-height: 100svh;
   background: var(--bg);
   color: var(--ink);
   display: flex;
@@ -13,9 +18,17 @@
   overflow: hidden;
   font-family: var(--font);
   padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
+}
+
+/* Primary scroll region between header chrome and fixed tab bar */
+.q-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .q-scroll {
@@ -23,6 +36,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
@@ -40,7 +54,7 @@
 }
 
 .q-body-tabbed {
-  padding-bottom: 116px;
+  padding-bottom: var(--tabbar-occupied);
 }
 
 /* Typography */
@@ -316,13 +330,13 @@
   height: 7px;
 }
 
-/* Tab bar */
+/* Tab bar — fixed to viewport bottom (PWA / mobile Safari) */
 .tabbar {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: calc(12px + var(--safe-bottom));
-  height: 76px;
+  position: fixed;
+  left: calc(var(--tabbar-inset) + var(--safe-left));
+  right: calc(var(--tabbar-inset) + var(--safe-right));
+  bottom: calc(var(--tabbar-inset) + var(--safe-bottom));
+  height: var(--tabbar-height);
   padding-bottom: 8px;
   border-radius: var(--r-xl);
   background: rgba(255, 255, 255, 0.82);
@@ -333,6 +347,7 @@
   align-items: center;
   justify-content: space-around;
   z-index: 40;
+  pointer-events: auto;
 }
 
 .tab {

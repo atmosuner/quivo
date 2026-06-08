@@ -22,9 +22,11 @@ export default function App() {
   if (isLoading) {
     return (
       <div className="q-app">
-        <div className="q-scroll">
-          <div className="q-body" style={{ paddingTop: 80 }}>
-            <div className="t-body" role="status">Loading Quivo…</div>
+        <div className="q-main">
+          <div className="q-scroll">
+            <div className="q-body" style={{ paddingTop: 80 }}>
+              <div className="t-body" role="status">Loading Quivo…</div>
+            </div>
           </div>
         </div>
       </div>

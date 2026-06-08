@@ -75,6 +75,13 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ---- Tab bar (fixed bottom nav) ---- */
+  --tabbar-height: 76px;
+  --tabbar-inset: 12px;
+  --tabbar-occupied: calc(
+    var(--tabbar-height) + var(--tabbar-inset) * 2 + var(--safe-bottom)
+  );
 }
 
 /* Gradient surfaces — CSS classes (from design system) */

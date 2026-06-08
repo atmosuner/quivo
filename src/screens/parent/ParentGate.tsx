@@ -257,8 +257,9 @@ export function ParentGate() {
 
   return (
     <div className="q-app">
-      <div className="q-scroll">
-        <div className="pin-gate">
+      <div className="q-main">
+        <div className="q-scroll">
+          <div className="pin-gate">
           <div
             className="g-brand"
             style={{
@@ -308,6 +309,7 @@ export function ParentGate() {
           >
             Back to child view
           </Button>
+          </div>
         </div>
       </div>
     </div>
