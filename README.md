@@ -67,6 +67,21 @@ Not included (backlog):
 - Real cover image uploads
 - Production brand assets (icons marked temporary)
 
+## Parent PIN (demo / developer notes)
+
+**First launch (no saved data):** Opening Parent area shows **PIN setup** — choose a 4-digit PIN, then confirm it. The demo seed does not include a parent PIN (`parentPinHash` and `parentPinSalt` are `null` in `src/data/seed.ts`).
+
+**Return visits:** If you already set a PIN in this browser, Parent area shows **PIN entry** instead. The PIN is stored only as a salted SHA-256 hash in `localStorage` (key: `quivo.app.snapshot.v1`). There is **no demo PIN** and no way to recover a forgotten PIN without resetting data.
+
+**Forgot PIN / reset to fresh demo:**
+
+1. Child **Settings → Reset local data** (double confirmation), or
+2. DevTools → Application → Local Storage → remove `quivo.app.snapshot.v1` for the site origin, then reload.
+
+Reset restores the seed family and clears the parent PIN, so Parent area will show setup again.
+
+**Demo presenters:** Use a private/incognito window for a guaranteed first-launch setup flow, or reset local data before the demo.
+
 ## Data safety
 
 - **Export:** Settings → Export local data (JSON download)

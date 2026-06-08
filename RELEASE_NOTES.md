@@ -20,6 +20,19 @@
 - 15-minute parent session (re-PIN after expiry)
 - Change parent PIN from child settings
 
+### Parent PIN — first launch vs return visit
+
+| Situation | Parent area shows |
+|-----------|-------------------|
+| **True first launch** (no `localStorage` snapshot yet) | **PIN setup** → confirm → done |
+| **After PIN was set in this browser** | **PIN entry** |
+| **After Reset local data** | **PIN setup** again |
+
+- Seed data has **no default PIN** (`parentPinHash` / `parentPinSalt` are `null`).
+- There is **no demo PIN** (tests may use sample digits like `2468`; that is not shipped in seed).
+- If you see PIN entry on a “fresh” demo, the browser already has Quivo data from an earlier session on the same origin (e.g. prior visit to [GitHub Pages](https://atmosuner.github.io/quivo/) or local dev).
+- **Forgot PIN:** Settings → **Reset local data**, or clear `quivo.app.snapshot.v1` in DevTools → reload.
+
 ### Data & safety
 - All data in `localStorage` (demo seed on first launch)
 - Export JSON backup from Settings
@@ -75,7 +88,7 @@ npm test          # 51 tests including release flow smoke tests
 1. **Child home** — Show Mia’s greeting, XP ring, today’s quests. Complete one open task (or show pending if approval required).
 2. **Reading** — Open Reading from Home → show stats → open a book → log pages (note pending approval if enabled).
 3. **Rewards** — Open Rewards → tap a reward → redeem if affordable → show coins in escrow.
-4. **Parent PIN** — Settings → Parent area → enter PIN (first time: set 4 digits).
+4. **Parent PIN** — Settings → Parent area → first visit: **setup** 4 digits; return visit: **enter** PIN you chose earlier (no demo PIN).
 5. **Approvals** — Approve a task, reading log, or reward redemption; return to child and show updated state.
 6. **Add task** — Parent dashboard → Add task → verify it appears on child Quests tab.
 7. **Settings** — Export JSON (backup) → mention reset restores demo.
