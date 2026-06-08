@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quivo — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body { background: var(--bg); color: var(--ink); }
+  .ds-wrap { max-width: 1040px; margin: 0 auto; padding: 64px 32px 120px; }
+  .ds-section { margin-top: 64px; }
+  .ds-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand); margin-bottom: 10px; }
+  .ds-grid { display: grid; gap: 16px; }
+  .ds-card { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh-2); padding: 24px; }
+  .ds-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .sw { border-radius: 14px; height: 78px; box-shadow: var(--sh-1); display: flex; align-items: flex-end; padding: 10px; position: relative; overflow: hidden; }
+  .sw .nm { font-size: 12px; font-weight: 700; }
+  .sw .vl { font-family: var(--mono); font-size: 9.5px; opacity: 0.75; position: absolute; top: 9px; left: 10px; }
+  .label-sm { font-size: 12px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.02em; text-transform: uppercase; margin-bottom: 12px; }
+  .mono-tag { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .icon-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px; border-radius: 14px; background: var(--surface-2); }
+  .icon-cell span { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="app/icons.jsx"></script>
+  <script type="text/babel" src="app/data.jsx"></script>
+  <script type="text/babel" src="app/components.jsx"></script>
+  <script type="text/babel" src="app/screens-child.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    /* useState is already declared globally by components.jsx */
+
+    function Swatch({ token, name, value, ink = '#fff' }) {
+      return (
+        <div className="sw" style={{ background: `var(${token})` }}>
+          <span className="vl" style={{ color: ink }}>{value}</span>
+          <span className="nm" style={{ color: ink }}>{name}</span>
+        </div>
+      );
+    }
+
+    function Section({ eyebrow, title, desc, children }) {
+      return (
+        <section className="ds-section">
+          <div className="ds-eyebrow">{eyebrow}</div>
+          <h2 className="t-h1" style={{ marginBottom: desc ? 6 : 22 }}>{title}</h2>
+          {desc && <p className="t-body" style={{ maxWidth: 560, marginBottom: 24 }}>{desc}</p>}
+          {children}
+        </section>
+      );
+    }
+
+    function ToggleDemo() {
+      const [on, setOn] = useState(true);
+      return <Toggle on={on} set={setOn} />;
+    }
+    function SegDemo() {
+      const [v, setV] = useState('Daily');
+      return (
+        <div className="seg" style={{ width: 280 }}>
+          {['Once','Daily','Weekly'].map(d => <button key={d} className={v===d?'on':''} onClick={()=>setV(d)}>{d}</button>)}
+        </div>
+      );
+    }
+    function CbxDemo() {
+      const [on, setOn] = useState(false);
+      return <button className={`cbx${on?' on':''}`} onClick={()=>setOn(!on)}>{on && <Icons.check size={16} stroke="#fff" />}</button>;
+    }
+    // Toggle / Stepper live in screens-parent; redefine lightweight here
+    function Toggle({ on, set }) {
+      return (
+        <button onClick={() => set(!on)} style={{ width: 50, height: 30, borderRadius: 99, border: 'none', cursor: 'pointer', padding: 3, background: on ? 'var(--success)' : 'var(--surface-3)', transition: 'background .2s', position: 'relative' }}>
+          <span style={{ display: 'block', width: 24, height: 24, borderRadius: 99, background: '#fff', boxShadow: 'var(--sh-1)', transform: on ? 'translateX(20px)' : 'translateX(0)', transition: 'transform .2s' }} />
+        </button>
+      );
+    }
+
+    const sampleTask = Q.TASKS[0];
+
+    function DS() {
+      return (
+        <div className="ds-wrap">
+          {/* Brand */}
+          <header>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div className="g-brand" style={{ width: 52, height: 52, borderRadius: 16, display: 'grid', placeItems: 'center', color: '#fff', boxShadow: 'var(--sh-brand)' }}>
+                <Icons.bolt size={26} />
+              </div>
+              <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.03em' }}>Quivo</div>
+            </div>
+            <h1 className="t-display" style={{ fontSize: 44, marginTop: 28, maxWidth: 620 }}>Small habits.<br/>Big rewards.</h1>
+            <p className="t-body" style={{ fontSize: 17, maxWidth: 560, marginTop: 16 }}>
+              A premium family habit product. Motivating and rewarding for children,
+              trustworthy and clear for parents. Clean gamification — never toy-like.
+            </p>
+            <div className="ds-row" style={{ marginTop: 22 }}>
+              {['Motivating','Trustworthy','Premium','Playful, not childish'].map(p =>
+                <span key={p} className="chip" style={{ height: 34 }}>{p}</span>)}
+            </div>
+          </header>
+
+          {/* Color */}
+          <Section eyebrow="Foundations" title="Color" desc="A confident indigo carries identity and progress. Cool-tinted neutrals keep surfaces calm. Functional and category hues share lightness and chroma so the palette stays harmonious.">
+            <div className="label-sm">Brand</div>
+            <div className="ds-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px,1fr))' }}>
+              <Swatch token="--brand" name="Brand" value="oklch(.55 .17 280)" />
+              <Swatch token="--brand-strong" name="Brand strong" value="oklch(.47 .18 280)" />
+              <Swatch token="--brand-ink" name="Brand ink" value="oklch(.40 .16 280)" />
+              <Swatch token="--brand-tint" name="Brand tint" value="oklch(.96 .03 280)" ink="var(--brand-ink)" />
+            </div>
+
+            <div className="label-sm" style={{ marginTop: 28 }}>Neutrals</div>
+            <div className="ds-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px,1fr))' }}>
+              <Swatch token="--ink" name="Ink" value="oklch(.24 .02)" />
+              <Swatch token="--ink-2" name="Ink 2" value="oklch(.46 .01)" />
+              <Swatch token="--ink-3" name="Ink 3" value="oklch(.62 .01)" />
+              <Swatch token="--line" name="Line" value="oklch(.92)" ink="var(--ink-2)" />
+              <Swatch token="--surface-2" name="Surface 2" value="oklch(.97)" ink="var(--ink-2)" />
+              <Swatch token="--bg" name="Background" value="oklch(.98)" ink="var(--ink-2)" />
+            </div>
+
+            <div className="label-sm" style={{ marginTop: 28 }}>Functional</div>
+            <div className="ds-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px,1fr))' }}>
+              <Swatch token="--coin" name="Coin" value="oklch(.80 .14 78)" />
+              <Swatch token="--streak" name="Streak" value="oklch(.70 .16 45)" />
+              <Swatch token="--success" name="Success" value="oklch(.68 .13 155)" />
+            </div>
+
+            <div className="label-sm" style={{ marginTop: 28 }}>Categories</div>
+            <div className="ds-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px,1fr))' }}>
+              <Swatch token="--cat-reading" name="Reading" value="250" />
+              <Swatch token="--cat-responsibility" name="Responsibility" value="295" />
+              <Swatch token="--cat-learning" name="Learning" value="65" />
+              <Swatch token="--cat-health" name="Health" value="160" />
+              <Swatch token="--cat-family" name="Family" value="12" />
+            </div>
+          </Section>
+
+          {/* Type */}
+          <Section eyebrow="Foundations" title="Typography" desc="Hanken Grotesk — a crisp, neutral grotesque with the precision of a system font and a touch of warmth. JetBrains Mono labels technical and placeholder content.">
+            <div className="ds-card">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {[
+                  ['t-display','Display','34 / 800'],
+                  ['t-h1','Heading 1','27 / 800'],
+                  ['t-h2','Heading 2','21 / 700'],
+                  ['t-h3','Heading 3','17 / 700'],
+                  ['t-body','Body — the quick brown fox','15 / 500'],
+                  ['t-label','Label','13 / 600'],
+                  ['t-eyebrow','Eyebrow','11.5 / 700 · tracked'],
+                ].map(([cls,txt,meta]) => (
+                  <div key={cls} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 20, borderBottom: '1px solid var(--line-soft)', paddingBottom: 16 }}>
+                    <span className={cls}>{txt}</span>
+                    <span className="mono-tag" style={{ whiteSpace: 'nowrap' }}>{meta}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <span className="mono" style={{ fontSize: 15, color: 'var(--ink-2)' }}>JetBrains Mono · 142 pages</span>
+                  <span className="mono-tag">monospace</span>
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {/* Radius & shadow */}
+          <Section eyebrow="Foundations" title="Shape & elevation" desc="Generous, consistent rounding and soft, low-contrast shadows give the product a calm, premium feel. Corner scale is tweakable system-wide.">
+            <div className="ds-row" style={{ gap: 18, marginBottom: 28 }}>
+              {[['--r-sm','sm'],['--r-md','md'],['--r-lg','lg'],['--r-xl','xl'],['--r-pill','pill']].map(([t,n]) => (
+                <div key={n} style={{ textAlign: 'center' }}>
+                  <div style={{ width: 84, height: 84, background: 'var(--brand-tint)', border: '1.5px solid var(--brand)', borderRadius: `var(${t})` }} />
+                  <div className="mono-tag" style={{ marginTop: 8 }}>{n}</div>
+                </div>
+              ))}
+            </div>
+            <div className="ds-row" style={{ gap: 22 }}>
+              {[['--sh-1','sm'],['--sh-2','md'],['--sh-3','lg'],['--sh-4','xl']].map(([t,n]) => (
+                <div key={n} style={{ textAlign: 'center' }}>
+                  <div style={{ width: 110, height: 70, background: 'var(--surface)', borderRadius: 16, boxShadow: `var(${t})` }} />
+                  <div className="mono-tag" style={{ marginTop: 12 }}>{n}</div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          {/* Gamification atoms */}
+          <Section eyebrow="Components" title="Gamification atoms" desc="The reward language: XP, coins, levels, streaks, difficulty. Restrained day-to-day, with a little more delight reserved for milestones.">
+            <div className="ds-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))' }}>
+              <div className="ds-card">
+                <div className="label-sm">Coins &amp; XP</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                  <CoinValue value={248} size={18} />
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 700, color: 'var(--brand)' }}><Icons.bolt size={16} /> +20 XP</span>
+                </div>
+              </div>
+              <div className="ds-card">
+                <div className="label-sm">Streak &amp; difficulty</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 800, color: 'var(--streak)' }}><Icons.flameFill size={18} /> 12</span>
+                  <Difficulty level={2} />
+                </div>
+              </div>
+              <div className="ds-card">
+                <div className="label-sm">XP progress</div>
+                <Bar pct={68} />
+              </div>
+              <div className="ds-card">
+                <div className="label-sm">Stat pills</div>
+                <div className="ds-row">
+                  <StatPill icon="bolt" value="1,840" tone="--brand" />
+                  <StatPill icon="flame" value="12" tone="--streak" />
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {/* Avatars */}
+          <Section eyebrow="Components" title="Avatars" desc="Abstract geometric marks with a soft gradient and the child's initial — a personal identity color, distinct from the app accent. Premium, never a cartoon mascot.">
+            <div className="ds-row" style={{ gap: 20 }}>
+              <Avatar size={64} initial="M" hue1={282} hue2={250} />
+              <Avatar size={64} initial="L" hue1={200} hue2={160} />
+              <Avatar size={64} initial="A" hue1={20} hue2={350} />
+              <Avatar size={64} initial="S" hue1={140} hue2={170} ring />
+            </div>
+          </Section>
+
+          {/* Buttons */}
+          <Section eyebrow="Components" title="Buttons & controls">
+            <div className="ds-card">
+              <div className="label-sm">Buttons</div>
+              <div className="ds-row" style={{ marginBottom: 22 }}>
+                <button className="btn btn-primary btn-md">Complete task</button>
+                <button className="btn btn-ghost btn-md">Parent area</button>
+                <button className="btn btn-tint btn-md">Redeem</button>
+                <button className="btn btn-quiet btn-md">Not now</button>
+              </div>
+              <div className="label-sm">Chips, tags & category</div>
+              <div className="ds-row" style={{ marginBottom: 22 }}>
+                <span className="chip chip-active">All</span>
+                <span className="chip">Reading</span>
+                <span className="chip">Health</span>
+                <CatTag cat="reading" />
+                <CatTag cat="health" />
+                <CatTag cat="family" />
+              </div>
+              <div className="label-sm">Segmented · toggle · checkbox</div>
+              <div className="ds-row">
+                <SegDemo />
+                <ToggleDemo />
+                <CbxDemo />
+              </div>
+            </div>
+          </Section>
+
+          {/* Composite */}
+          <Section eyebrow="Components" title="Composite blocks" desc="Atoms assemble into the surfaces children and parents touch every day.">
+            <div className="ds-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px,1fr))' }}>
+              <div>
+                <div className="label-sm">Task row</div>
+                <TaskRow task={sampleTask} onToggle={()=>{}} onOpen={()=>{}} />
+              </div>
+              <div>
+                <div className="label-sm">Icon tiles</div>
+                <div className="ds-row">
+                  <IconTile icon="book" tone="--cat-reading" size={46} fill />
+                  <IconTile icon="home" tone="--cat-responsibility" size={46} />
+                  <IconTile icon="heart" tone="--cat-family" size={46} />
+                  <IconTile icon="sparkle" tone="--cat-health" size={46} />
+                </div>
+              </div>
+              <div>
+                <div className="label-sm">Achievement badges</div>
+                <div className="ds-row">
+                  <Badge a={Q.ACHIEVEMENTS[0]} onClick={()=>{}} />
+                  <Badge a={Q.ACHIEVEMENTS[2]} onClick={()=>{}} />
+                </div>
+              </div>
+              <div>
+                <div className="label-sm">Book cover & placeholder</div>
+                <div className="ds-row" style={{ alignItems: 'flex-start' }}>
+                  <BookCover tone={250} title="The One and Only Ivan" w={64} h={92} />
+                  <Placeholder label="reward image" tone={78} style={{ width: 120, height: 92 }} />
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {/* Iconography */}
+          <Section eyebrow="Foundations" title="Iconography" desc="A single-weight line set at 1.8px stroke with rounded joins. Filled variants mark active navigation and earned states.">
+            <div className="ds-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(92px,1fr))' }}>
+              {['home','quests','rewards','trophy','user','book','flame','star','clock','bell','settings','shield','gift','pages','heart','calendar','bolt','sparkle','lock','check'].map(k => {
+                const I = Icons[k];
+                return (
+                  <div key={k} className="icon-cell">
+                    <span style={{ color: 'var(--ink)' }}><I size={24} /></span>
+                    <span>{k}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+
+          <footer style={{ marginTop: 80, paddingTop: 28, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <span className="t-cap">Quivo Design System · v1.0</span>
+            <a href="Quivo Prototype.html" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>Open the prototype →</a>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<DS />);
+  </script>
+</body>
+</html>

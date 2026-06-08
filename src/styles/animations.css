@@ -1,0 +1,65 @@
+/* ============================================================
+   QUIVO — Motion
+   Ported from /design/styles.css
+   ============================================================ */
+
+@keyframes q-rise {
+  from { transform: translateY(12px); }
+  to { transform: translateY(0); }
+}
+
+.rise {
+  animation: q-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes q-pop {
+  0% { transform: scale(0.92); }
+  60% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.pop {
+  animation: q-pop 0.4s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+@keyframes q-sheet {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes q-fall {
+  to { transform: translateY(900px) rotate(540deg); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .pop {
+    animation: none !important;
+  }
+
+  .bar > i {
+    transition: none !important;
+  }
+
+  .confetti-layer,
+  .confetti-piece {
+    display: none !important;
+  }
+
+  .celebration-card.pop {
+    animation: none !important;
+  }
+}
+
+.no-motion .rise,
+.no-motion .pop {
+  animation: none !important;
+}
+
+.no-motion .confetti-layer {
+  display: none !important;
+}
+
+.no-motion * {
+  transition-duration: 0.001ms !important;
+}

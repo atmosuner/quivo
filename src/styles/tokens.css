@@ -1,0 +1,104 @@
+/* ============================================================
+   QUIVO — Design Tokens
+   Ported from /design/styles.css
+   Clean & airy · indigo/violet · crisp neutral grotesque
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ---- Brand / accent (tweakable) ---- */
+  --brand-h: 280;
+  --brand: oklch(0.55 0.17 280);
+  --brand-strong: oklch(0.47 0.18 280);
+  --brand-press: oklch(0.42 0.17 280);
+  --brand-tint: oklch(0.96 0.028 280);
+  --brand-tint-2: oklch(0.93 0.045 280);
+  --brand-ink: oklch(0.40 0.16 280);
+  --on-brand: #fff;
+
+  /* ---- Neutrals (cool-tinted) ---- */
+  --bg: oklch(0.984 0.004 285);
+  --surface: #ffffff;
+  --surface-2: oklch(0.972 0.005 285);
+  --surface-3: oklch(0.955 0.006 285);
+  --ink: oklch(0.24 0.018 285);
+  --ink-2: oklch(0.46 0.014 285);
+  --ink-3: oklch(0.62 0.012 285);
+  --ink-4: oklch(0.74 0.010 285);
+  --line: oklch(0.922 0.006 285);
+  --line-soft: oklch(0.952 0.005 285);
+
+  /* ---- Functional accents (muted, premium) ---- */
+  --coin: oklch(0.80 0.135 78);
+  --coin-ink: oklch(0.52 0.11 70);
+  --coin-tint: oklch(0.95 0.04 80);
+  --streak: oklch(0.70 0.16 45);
+  --streak-tint: oklch(0.95 0.045 45);
+  --success: oklch(0.68 0.13 155);
+  --success-tint: oklch(0.95 0.05 155);
+
+  /* ---- Category hues ---- */
+  --cat-reading: oklch(0.60 0.13 250);
+  --cat-reading-tint: oklch(0.95 0.035 250);
+  --cat-responsibility: oklch(0.56 0.15 295);
+  --cat-responsibility-tint: oklch(0.95 0.035 295);
+  --cat-learning: oklch(0.66 0.13 65);
+  --cat-learning-tint: oklch(0.95 0.045 70);
+  --cat-health: oklch(0.66 0.11 160);
+  --cat-health-tint: oklch(0.95 0.04 160);
+  --cat-family: oklch(0.64 0.14 12);
+  --cat-family-tint: oklch(0.95 0.038 14);
+
+  /* ---- Radius (tweakable via --r-scale) ---- */
+  --r-scale: 1;
+  --r-xs: calc(8px * var(--r-scale));
+  --r-sm: calc(12px * var(--r-scale));
+  --r-md: calc(16px * var(--r-scale));
+  --r-lg: calc(22px * var(--r-scale));
+  --r-xl: calc(28px * var(--r-scale));
+  --r-pill: 999px;
+
+  /* ---- Shadows (soft) ---- */
+  --sh-1: 0 1px 2px rgba(28, 25, 58, 0.05), 0 1px 3px rgba(28, 25, 58, 0.04);
+  --sh-2: 0 2px 6px rgba(28, 25, 58, 0.05), 0 6px 18px -6px rgba(28, 25, 58, 0.10);
+  --sh-3: 0 10px 30px -8px rgba(28, 25, 58, 0.16), 0 4px 10px -4px rgba(28, 25, 58, 0.08);
+  --sh-4: 0 24px 60px -16px rgba(28, 25, 58, 0.28), 0 8px 20px -10px rgba(28, 25, 58, 0.14);
+  --sh-brand: 0 8px 22px -6px oklch(0.55 0.17 280 / 0.42);
+
+  /* ---- Type ---- */
+  --font: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ---- Layout (PWA safe areas) ---- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Gradient surfaces — CSS classes (from design system) */
+.g2 {
+  background-color: var(--g1);
+  background-image: linear-gradient(145deg, var(--g1), var(--g2));
+}
+
+.g-brand {
+  background-color: var(--brand);
+  background-image: linear-gradient(150deg, var(--brand), var(--brand-strong));
+}
+
+.g-reading {
+  background-color: oklch(0.55 0.13 256);
+  background-image: linear-gradient(150deg, oklch(0.60 0.13 250), oklch(0.50 0.14 262));
+}
+
+.g-coin {
+  background-color: var(--coin);
+  background-image: linear-gradient(145deg, oklch(0.84 0.13 82), oklch(0.70 0.13 66));
+}
+
+.g-success {
+  background-color: var(--success);
+  background-image: linear-gradient(145deg, oklch(0.72 0.13 156), oklch(0.60 0.13 158));
+}
