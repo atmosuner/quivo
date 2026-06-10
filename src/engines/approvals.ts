@@ -1,5 +1,6 @@
 import type {
   Approval,
+  Book,
   Child,
   Family,
   ReadingLog,
@@ -531,6 +532,80 @@ export function declineRewardRedemption(
       replaceChild(family, restored),
       resolveApproval(approval, 'declined', resolvedAt),
     ),
+    effects: [],
+  }
+}
+
+export function proposeBook(
+  family: Family,
+  childId: string,
+  book: Book,
+  options: { approvalId: string; createdAt: string },
+): FamilyMutationResult {
+  getChild(family, childId)
+
+  const approval: Approval = {
+    id: options.approvalId,
+    type: 'book_proposal',
+    childId,
+    status: 'pending',
+    createdAt: options.createdAt,
+    resolvedAt: null,
+    xp: 0,
+    coins: 0,
+    taskId: null,
+    bookId: book.id,
+    rewardId: null,
+    pages: null,
+    note: book.title,
+  }
+
+  return {
+    family: {
+      ...family,
+      books: [...family.books, book],
+      approvals: [...family.approvals, approval],
+    },
+    effects: [],
+  }
+}
+
+export function approveBookProposal(
+  family: Family,
+  approvalId: string,
+  resolvedAt: string = new Date().toISOString(),
+): FamilyMutationResult {
+  const approval = getApproval(family, approvalId)
+  if (approval.type !== 'book_proposal' || !approval.bookId) {
+    throw new Error('approval is not a book proposal')
+  }
+
+  return {
+    family: {
+      ...replaceApproval(family, resolveApproval(approval, 'approved', resolvedAt)),
+      books: family.books.map((b) =>
+        b.id === approval.bookId ? { ...b, status: 'reading' as const } : b,
+      ),
+    },
+    effects: [],
+  }
+}
+
+export function declineBookProposal(
+  family: Family,
+  approvalId: string,
+  resolvedAt: string = new Date().toISOString(),
+): FamilyMutationResult {
+  const approval = getApproval(family, approvalId)
+  if (approval.type !== 'book_proposal' || !approval.bookId) {
+    throw new Error('approval is not a book proposal')
+  }
+
+  return {
+    family: {
+      ...replaceApproval(family, resolveApproval(approval, 'declined', resolvedAt)),
+      books: family.books.filter((b) => b.id !== approval.bookId),
+    },
     effects: [],
   }
 }

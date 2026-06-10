@@ -3,9 +3,11 @@ import type { GrantEffect } from '../types/gamification.ts'
 import type { DataRepository } from '../lib/storage/repository.ts'
 import { localStorageRepository } from '../lib/storage/localStorage.ts'
 import {
+  approveBookProposal,
   approveReadingLog,
   approveRewardRedemption,
   approveTaskCompletion,
+  declineBookProposal,
   declineReadingLog,
   declineRewardRedemption,
   declineTaskCompletion,
@@ -43,6 +45,10 @@ function resolveApprovalMutation(
       return action === 'approve'
         ? approveRewardRedemption(family, approvalId, resolvedAt)
         : declineRewardRedemption(family, approvalId, resolvedAt)
+    case 'book_proposal':
+      return action === 'approve'
+        ? approveBookProposal(family, approvalId, resolvedAt)
+        : declineBookProposal(family, approvalId, resolvedAt)
     default:
       throw new Error(`unsupported approval type`)
   }

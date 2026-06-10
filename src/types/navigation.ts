@@ -29,7 +29,7 @@ export interface ChildStackEntry {
 }
 
 /** Parent stack screens (no tab bar in parent mode). */
-export type ParentScreen = 'dash' | 'addtask' | 'approval' | 'parentrewards' | 'reports'
+export type ParentScreen = 'dash' | 'addtask' | 'approval' | 'parentrewards' | 'parentaddbook' | 'reports'
 
 export interface NavigationState {
   mode: AppMode

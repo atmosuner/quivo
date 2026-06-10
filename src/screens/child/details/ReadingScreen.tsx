@@ -31,6 +31,7 @@ export function ReadingScreen({ onBack }: ReadingScreenProps) {
 
   const referenceDate = getReferenceDate(snapshot)
   const books = getReadingBooks(snapshot.family, child.id)
+  const pending = books.filter((book) => book.status === 'pending')
   const reading = books.filter((book) => book.status === 'reading')
   const done = books.filter((book) => book.status === 'done')
   const pagesThisMonth = getPagesReadThisMonth(
@@ -145,8 +146,41 @@ export function ReadingScreen({ onBack }: ReadingScreenProps) {
           <EmptyState
             icon={<Plus size={32} />}
             title="No books yet"
-            description="Tap + to add your first book and start tracking reading."
+            description="Tap + to suggest a book. Your parent will approve it."
           />
+        )}
+
+        {pending.length > 0 && (
+          <>
+            <SectionHead title="Waiting for approval" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {pending.map((book) => (
+                <div
+                  key={book.id}
+                  style={{
+                    display: 'flex',
+                    gap: 14,
+                    background: 'var(--surface)',
+                    borderRadius: 'var(--r-lg)',
+                    boxShadow: 'var(--sh-2)',
+                    padding: 14,
+                    opacity: 0.6,
+                  }}
+                >
+                  <BookCover tone={book.coverTone} title={book.title} w={58} h={84} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="t-h3" style={{ fontSize: 15.5 }}>{book.title}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', marginTop: 1 }}>
+                      {book.author}
+                    </div>
+                    <div className="t-cap" style={{ marginTop: 10, color: 'var(--coin-ink)', fontWeight: 700 }}>
+                      Waiting for parent approval
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         <SectionHead title="Currently reading" />

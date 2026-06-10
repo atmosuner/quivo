@@ -9,6 +9,10 @@ export interface PageLogValidation {
 
 /** Validate and cap pages for a book log. */
 export function validatePageLog(book: Book, pages: number): PageLogValidation {
+  if (book.status === 'pending') {
+    return { valid: false, error: 'book is pending approval', cappedPages: 0 }
+  }
+
   if (pages <= 0) {
     return { valid: false, error: 'pages must be positive', cappedPages: 0 }
   }

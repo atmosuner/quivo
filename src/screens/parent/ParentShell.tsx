@@ -9,7 +9,9 @@ import {
 import { ActionErrorBanner } from '../shared/ActionErrorBanner.tsx'
 import { AddTaskScreen } from './AddTaskScreen.tsx'
 import { ApprovalScreen } from './ApprovalScreen.tsx'
+import { ParentAddBookScreen } from './ParentAddBookScreen.tsx'
 import { ParentDashboard } from './ParentDashboard.tsx'
+import { ParentRewardsScreen } from './ParentRewardsScreen.tsx'
 
 export function ParentShell() {
   const parentScreen = useAppStore((state) => state.parentScreen)
@@ -62,6 +64,8 @@ export function ParentShell() {
         {parentScreen === 'dash' && <ParentDashboard />}
         {parentScreen === 'approval' && <ApprovalScreen />}
         {parentScreen === 'addtask' && <AddTaskScreen />}
+        {parentScreen === 'parentrewards' && <ParentRewardsScreen />}
+        {parentScreen === 'parentaddbook' && <ParentAddBookScreen />}
       </div>
       {error && (
         <ActionErrorBanner message={error} onDismiss={clearError} tabbed={false} />

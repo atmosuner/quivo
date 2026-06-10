@@ -11,9 +11,10 @@ import {
 import { runDailyResetIfNeeded } from '../services/dailyResetService.ts'
 import { addTask, submitTaskCompletion } from '../services/taskService.ts'
 import type { CreateTaskInput } from '../services/taskService.ts'
-import { addBook, submitPageLog } from '../services/readingService.ts'
+import { addBook, proposeBook as proposeBookService, submitPageLog } from '../services/readingService.ts'
 import type { AddBookInput } from '../services/readingService.ts'
-import { requestRewardRedemption } from '../services/rewardService.ts'
+import { createReward as createRewardService, requestRewardRedemption, toggleReward as toggleRewardService } from '../services/rewardService.ts'
+import type { CreateRewardInput } from '../services/rewardService.ts'
 import { approveApproval, declineApproval } from '../services/approvalService.ts'
 import { downloadSnapshotJson } from '../lib/export/downloadJson.ts'
 import { toUserErrorMessage } from '../lib/errors/userMessages.ts'
@@ -40,6 +41,9 @@ interface FamilyState {
   addBook: (childId: string, input: AddBookInput) => Promise<void>
   submitPageLog: (bookId: string, pages: number) => Promise<void>
   requestRewardRedemption: (childId: string, rewardId: string) => Promise<void>
+  createReward: (input: CreateRewardInput) => Promise<void>
+  toggleReward: (rewardId: string) => Promise<void>
+  proposeBook: (childId: string, input: AddBookInput) => Promise<void>
   approveApproval: (approvalId: string) => Promise<void>
   declineApproval: (approvalId: string) => Promise<void>
   createTask: (input: CreateTaskInput) => Promise<void>
@@ -152,6 +156,33 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     try {
       const result = await requestRewardRedemption(childId, rewardId, get().repo)
       enqueueServiceEffects(result.effects)
+      set({ snapshot: result.snapshot, error: null })
+    } catch (error) {
+      set({ error: toUserErrorMessage(error) })
+    }
+  },
+
+  createReward: async (input) => {
+    try {
+      const result = await createRewardService(input, get().repo)
+      set({ snapshot: result.snapshot, error: null })
+    } catch (error) {
+      set({ error: toUserErrorMessage(error) })
+    }
+  },
+
+  toggleReward: async (rewardId) => {
+    try {
+      const result = await toggleRewardService(rewardId, get().repo)
+      set({ snapshot: result.snapshot, error: null })
+    } catch (error) {
+      set({ error: toUserErrorMessage(error) })
+    }
+  },
+
+  proposeBook: async (childId, input) => {
+    try {
+      const result = await proposeBookService(childId, input, get().repo)
       set({ snapshot: result.snapshot, error: null })
     } catch (error) {
       set({ error: toUserErrorMessage(error) })

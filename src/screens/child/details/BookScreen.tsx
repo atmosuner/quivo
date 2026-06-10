@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import {
   Bar,
   BookCover,
@@ -8,13 +8,12 @@ import {
 } from '../../../components/index.ts'
 import { readingRewardsForPages, validatePageLog } from '../../../engines/reading.ts'
 import { DetailNotFound } from '../../shared/DetailNotFound.tsx'
-import { bolt, book, plus, shield } from '../../../components/icons/icons.tsx'
+import { bolt, book, shield } from '../../../components/icons/icons.tsx'
 import { useFamilyStore } from '../../../stores/familyStore.ts'
 import { getBookById } from '../../shared/selectors.ts'
 
 const Bolt = bolt
 const Book = book
-const Plus = plus
 const Shield = shield
 
 export interface BookScreenProps {
@@ -43,13 +42,14 @@ export function BookScreen({ bookId, onBack }: BookScreenProps) {
       approval.type === 'reading_log' &&
       approval.bookId === book.id,
   )
+  const isPending = book.status === 'pending'
   const isComplete = book.status === 'done'
   const pct = Math.round((book.pagesRead / book.totalPages) * 100)
   const rewards = readingRewardsForPages(pagesToLog)
   const remaining = book.totalPages - book.pagesRead
 
   const pageValidation = validatePageLog(book, pagesToLog)
-  const canLog = pageValidation.valid && !isComplete && !pendingLog && !submitting
+  const canLog = pageValidation.valid && !isComplete && !isPending && !pendingLog && !submitting
 
   const handleLog = async () => {
     if (!canLog) return
@@ -61,8 +61,8 @@ export function BookScreen({ bookId, onBack }: BookScreenProps) {
     }
   }
 
-  const bumpPages = (delta: number) => {
-    setPagesToLog((current) => Math.max(1, current + delta))
+  const setPages = (n: number) => {
+    setPagesToLog(Math.max(1, Math.min(remaining, n)))
   }
 
   return (
@@ -125,7 +125,27 @@ export function BookScreen({ bookId, onBack }: BookScreenProps) {
           </div>
         </div>
 
-        {!isComplete && (
+        {isPending && (
+          <div
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 'var(--r-lg)',
+              boxShadow: 'var(--sh-2)',
+              padding: 18,
+              marginTop: 14,
+              textAlign: 'center',
+            }}
+          >
+            <div className="t-cap" style={{ color: 'var(--coin-ink)', fontWeight: 700 }}>
+              Waiting for parent approval
+            </div>
+            <div className="t-body" style={{ color: 'var(--ink-3)', marginTop: 6, fontSize: 13 }}>
+              Your parent needs to approve this book before you can log pages.
+            </div>
+          </div>
+        )}
+
+        {!isComplete && !isPending && (
           <div
             style={{
               background: 'var(--surface)',
@@ -138,57 +158,76 @@ export function BookScreen({ bookId, onBack }: BookScreenProps) {
             <div className="t-h3" style={{ marginBottom: 14 }}>
               Log pages read
             </div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 18,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => bumpPages(-5)}
-                disabled={pagesToLog <= 1}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 99,
-                  border: '1px solid var(--line)',
-                  background: 'var(--surface)',
-                  cursor: 'pointer',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-                aria-label="Decrease pages"
-              >
-                <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
-              </button>
-              <div style={{ textAlign: 'center', minWidth: 80 }}>
-                <div className="t-num" style={{ fontSize: 38, fontWeight: 800, lineHeight: 1 }}>
-                  {pagesToLog}
-                </div>
-                <div className="t-cap">pages</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <div style={{ position: 'relative', textAlign: 'center' }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={remaining}
+                  value={pagesToLog}
+                  onChange={(e) => setPages(Number.parseInt(e.target.value, 10) || 1)}
+                  style={{
+                    width: 100,
+                    textAlign: 'center',
+                    fontSize: 38,
+                    fontWeight: 800,
+                    fontFamily: 'var(--font)',
+                    border: '2px solid var(--line)',
+                    borderRadius: 'var(--r-md)',
+                    background: 'var(--bg)',
+                    color: 'var(--ink)',
+                    padding: '6px 4px',
+                    lineHeight: 1,
+                  }}
+                  aria-label="Pages read"
+                />
+                <div className="t-cap" style={{ marginTop: 4 }}>pages today</div>
               </div>
-              <button
-                type="button"
-                onClick={() => bumpPages(5)}
-                disabled={!pageValidation.valid && remaining <= 0}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 99,
-                  border: '1px solid var(--line)',
-                  background: 'var(--surface)',
-                  cursor: 'pointer',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-                aria-label="Increase pages"
-              >
-                <Plus size={20} />
-              </button>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[5, 10, 20].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPages(n)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 99,
+                      border: pagesToLog === n ? '2px solid var(--brand)' : '1px solid var(--line)',
+                      background: pagesToLog === n ? 'var(--brand-tint)' : 'var(--surface)',
+                      color: pagesToLog === n ? 'var(--brand)' : 'var(--ink-2)',
+                      fontFamily: 'var(--font)',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+                {remaining > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPages(remaining)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 99,
+                      border: pagesToLog === remaining ? '2px solid var(--success)' : '1px solid var(--line)',
+                      background: pagesToLog === remaining ? 'oklch(0.96 0.04 145)' : 'var(--surface)',
+                      color: pagesToLog === remaining ? 'var(--success)' : 'var(--ink-2)',
+                      fontFamily: 'var(--font)',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Finish!
+                  </button>
+                )}
+              </div>
             </div>
+
             <div
               style={{
                 display: 'flex',
@@ -223,15 +262,8 @@ export function BookScreen({ bookId, onBack }: BookScreenProps) {
               disabled={!canLog}
               onClick={() => void handleLog()}
             >
-              <Book size={18} /> Log {pagesToLog} pages
+              <Book size={18} /> {submitting ? 'Logging…' : `Log ${pagesToLog} pages`}
             </Button>
-            {!pageValidation.valid && !isComplete && (
-              <div className="t-cap" style={{ marginTop: 8, textAlign: 'center' }}>
-                {pageValidation.error === 'pages must be positive'
-                  ? 'Enter at least 1 page.'
-                  : 'This book is already finished.'}
-              </div>
-            )}
             {pendingLog && (
               <div
                 className="t-cap"

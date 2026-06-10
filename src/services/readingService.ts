@@ -2,7 +2,7 @@ import type { Book, Family } from '../types/domain.ts'
 import type { GrantEffect } from '../types/gamification.ts'
 import type { DataRepository } from '../lib/storage/repository.ts'
 import { localStorageRepository } from '../lib/storage/localStorage.ts'
-import { submitReadingLog } from '../engines/approvals.ts'
+import { proposeBook as proposeBookEngine, submitReadingLog } from '../engines/approvals.ts'
 import { evaluateAchievementEvent } from '../engines/achievements.ts'
 import {
   applyPagesToBook,
@@ -147,6 +147,38 @@ export async function addBook(
   }
 
   return persistFamily(repo, snapshot.meta, family)
+}
+
+export async function proposeBook(
+  childId: string,
+  input: AddBookInput,
+  repo: DataRepository = localStorageRepository,
+): Promise<ServiceResult> {
+  const snapshot = await repo.load()
+  const child = snapshot.family.children.find((c) => c.id === childId)
+  if (!child) throw new Error(`child not found: ${childId}`)
+  if (input.totalPages <= 0) throw new Error('totalPages must be positive')
+
+  const now = new Date().toISOString()
+  const book: Book = {
+    id: createServiceId('book'),
+    childId,
+    title: input.title.trim(),
+    author: input.author.trim(),
+    totalPages: input.totalPages,
+    pagesRead: 0,
+    status: 'pending',
+    coverTone: input.coverTone,
+    startedAt: now,
+    finishedAt: null,
+  }
+
+  const result = proposeBookEngine(snapshot.family, childId, book, {
+    approvalId: createServiceId('approval-book'),
+    createdAt: now,
+  })
+
+  return persistFamily(repo, snapshot.meta, result.family, result.effects)
 }
 
 export async function submitPageLog(

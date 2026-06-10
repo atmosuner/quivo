@@ -18,7 +18,7 @@ export interface AddBookScreenProps {
 }
 
 export function AddBookScreen({ childId, onBack }: AddBookScreenProps) {
-  const addBook = useFamilyStore((state) => state.addBook)
+  const proposeBook = useFamilyStore((state) => state.proposeBook)
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [totalPages, setTotalPages] = useState('')
@@ -40,7 +40,7 @@ export function AddBookScreen({ childId, onBack }: AddBookScreenProps) {
     setFieldError(null)
 
     setSaving(true)
-    await addBook(childId, {
+    await proposeBook(childId, {
       title: title.trim(),
       author: author.trim(),
       totalPages: pages,
@@ -97,8 +97,11 @@ export function AddBookScreen({ childId, onBack }: AddBookScreenProps) {
           disabled={saving || !isValid}
           onClick={() => void handleAdd()}
         >
-          <Plus size={20} /> Add book
+          <Plus size={20} /> {saving ? 'Submitting…' : 'Submit for approval'}
         </Button>
+        <div className="t-cap" style={{ marginTop: 8, textAlign: 'center', color: 'var(--ink-3)' }}>
+          Your parent will review and approve this book.
+        </div>
       </div>
     </div>
   )

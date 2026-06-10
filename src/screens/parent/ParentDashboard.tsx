@@ -232,6 +232,20 @@ export function ParentDashboard() {
               tone: '--success',
               screen: 'approval' as const,
             },
+            {
+              icon: 'gift',
+              label: 'Rewards',
+              sub: `${family.rewards.filter((r) => r.active).length} active`,
+              tone: '--coin-ink',
+              screen: 'parentrewards' as const,
+            },
+            {
+              icon: 'pages',
+              label: 'Add book',
+              sub: 'Reading list',
+              tone: '--cat-reading',
+              screen: 'parentaddbook' as const,
+            },
           ].map((action) => (
             <button
               key={action.label}

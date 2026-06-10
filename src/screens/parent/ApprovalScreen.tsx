@@ -29,6 +29,7 @@ export function ApprovalScreen() {
   if (!snapshot) return null
 
   const pending = getPendingApprovals(snapshot.family)
+  const bookProposals = pending.filter((approval) => approval.type === 'book_proposal')
   const redemptions = pending.filter(
     (approval) => approval.type === 'reward_redemption',
   )
@@ -233,6 +234,26 @@ export function ApprovalScreen() {
             title="All caught up"
             description="No pending approvals."
           />
+        )}
+
+        {bookProposals.length > 0 && (
+          <>
+            <div className="t-eyebrow" style={{ margin: '4px 2px 12px' }}>
+              Book requests
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                marginBottom: 22,
+              }}
+            >
+              {bookProposals.map((approval) =>
+                renderCard(buildApprovalCardView(snapshot.family, approval)),
+              )}
+            </div>
+          </>
         )}
 
         {redemptions.length > 0 && (

@@ -158,6 +158,23 @@ export function buildApprovalCardView(
     }
   }
 
+  if (approval.type === 'book_proposal') {
+    const book = approval.bookId ? getBookById(family, approval.bookId) : undefined
+    return {
+      approval,
+      childName,
+      childInitial,
+      childAvatar,
+      title: book ? `"${book.title}"` : 'New book request',
+      subtitle: `${childName} wants to add · ${book?.author ?? ''} · ${formatApprovalWhen(approval.createdAt)}`,
+      note: null,
+      xp: 0,
+      coins: 0,
+      rewardCost: null,
+      categoryKey: 'reading',
+    }
+  }
+
   const reward = approval.rewardId
     ? getRewardById(family, approval.rewardId)
     : undefined

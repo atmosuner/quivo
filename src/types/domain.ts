@@ -15,12 +15,13 @@ export type TaskDifficulty = 1 | 2 | 3
 
 export type TaskStatus = 'open' | 'pending_approval' | 'completed_today'
 
-export type BookStatus = 'reading' | 'done'
+export type BookStatus = 'pending' | 'reading' | 'done'
 
 export type ApprovalType =
   | 'task_completion'
   | 'reading_log'
   | 'reward_redemption'
+  | 'book_proposal'
 
 export type ApprovalStatus = 'pending' | 'approved' | 'declined'
 
