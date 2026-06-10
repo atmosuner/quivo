@@ -1,8 +1,13 @@
 import { useState } from 'react'
+import { signOut } from 'firebase/auth'
 import { IconTile, SubHead } from '../../../components/index.ts'
 import { chevR } from '../../../components/icons/icons.tsx'
+import { auth } from '../../../lib/firebase/app.ts'
+import { DEMO_STORAGE_KEY } from '../../../stores/bootstrap.ts'
 import { useFamilyStore } from '../../../stores/familyStore.ts'
 import { useAppStore } from '../../../stores/appStore.ts'
+import { useParentGateStore } from '../../../stores/parentGateStore.ts'
+import { useSessionStore } from '../../../stores/sessionStore.ts'
 import { InstallHint } from '../../shared/InstallHint.tsx'
 import { getActiveChild } from '../../shared/selectors.ts'
 
@@ -41,6 +46,21 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     const app = useAppStore.getState()
     app.setParentScreen('dash')
     app.setMode('parent')
+  }
+
+  const handleSignOut = () => {
+    const isDemo = localStorage.getItem(DEMO_STORAGE_KEY) === 'true'
+    if (isDemo) {
+      localStorage.removeItem(DEMO_STORAGE_KEY)
+    } else {
+      void signOut(auth)
+    }
+    useFamilyStore.setState({ snapshot: null, isLoading: true })
+    useSessionStore.getState().clearEffects()
+    useParentGateStore.getState().clearSession()
+    useAppStore.getState().setOnboardingScreen('landing')
+    useAppStore.getState().setMode('onboarding')
+    useFamilyStore.getState().markReady()
   }
 
   const handleExport = () => {
@@ -117,6 +137,12 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
           label: 'Reset local data',
           tone: '--coin-ink',
           action: handleReset,
+        },
+        {
+          icon: 'user',
+          label: localStorage.getItem(DEMO_STORAGE_KEY) === 'true' ? 'Exit demo' : 'Sign out',
+          tone: '--ink-3',
+          action: handleSignOut,
         },
       ],
     },

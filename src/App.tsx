@@ -3,6 +3,7 @@ import { ChildShell } from './screens/shared/ChildShell.tsx'
 import { BootstrapError } from './screens/shared/BootstrapError.tsx'
 import { ParentGate } from './screens/parent/ParentGate.tsx'
 import { ParentShell } from './screens/parent/ParentShell.tsx'
+import { OnboardingShell } from './screens/onboarding/OnboardingShell.tsx'
 import { bootstrapQuivoApp } from './stores/bootstrap.ts'
 import { useAppStore } from './stores/appStore.ts'
 import { useFamilyStore } from './stores/familyStore.ts'
@@ -31,6 +32,10 @@ export default function App() {
         </div>
       </div>
     )
+  }
+
+  if (mode === 'onboarding') {
+    return <OnboardingShell />
   }
 
   if (!snapshot) {

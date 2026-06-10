@@ -28,6 +28,7 @@ interface FamilyState {
   recoveryNotice: string | null
   repo: DataRepository
   setRepository: (repo: DataRepository) => void
+  markReady: () => void
   bootstrap: () => Promise<void>
   reload: () => Promise<void>
   resetFamily: () => Promise<void>
@@ -51,12 +52,14 @@ function enqueueServiceEffects(effects: GrantEffect[]): void {
 
 export const useFamilyStore = create<FamilyState>((set, get) => ({
   snapshot: null,
-  isLoading: false,
+  isLoading: true,
   error: null,
   recoveryNotice: null,
   repo: localStorageRepository,
 
   setRepository: (repo) => set({ repo }),
+
+  markReady: () => set({ isLoading: false }),
 
   bootstrap: async () => {
     set({ isLoading: true, error: null })

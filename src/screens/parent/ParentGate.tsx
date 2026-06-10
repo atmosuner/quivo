@@ -7,7 +7,7 @@ import {
   completeGoogleRedirectIfNeeded,
   googleAuthErrorMessage,
   GoogleRedirectPending,
-  signInParentWithGoogle,
+  signInWithGoogle,
 } from '../../lib/firebase/googleAuth.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useAppStore } from '../../stores/appStore.ts'
@@ -66,7 +66,7 @@ export function ParentGate() {
     setBusy(true)
     setMessage(null)
     try {
-      await signInParentWithGoogle()
+      await signInWithGoogle()
       unlock()
     } catch (error) {
       if (error instanceof GoogleRedirectPending) {

@@ -1,8 +1,16 @@
 /** Child-mode bottom tab keys (match design prototype). */
 export type ChildTab = 'home' | 'quests' | 'rewards' | 'achievements' | 'profile'
 
-/** App mode — parent area requires a valid PIN session at runtime. */
-export type AppMode = 'child' | 'parent'
+/** App mode — onboarding shown before any session is established. */
+export type AppMode = 'onboarding' | 'child' | 'parent'
+
+/** Sub-screen within the onboarding flow. */
+export type OnboardingScreen =
+  | 'landing'
+  | 'parentSetup'
+  | 'inviteSent'
+  | 'childJoin'
+  | 'childWaiting'
 
 /** Child stack screens pushed over tab content. */
 export type ChildStackScreen =
