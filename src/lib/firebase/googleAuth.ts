@@ -18,39 +18,35 @@ export class GoogleRedirectPending extends Error {
   }
 }
 
-function usePopup(): boolean {
-  return !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-}
-
 /** Returns the Google redirect-result user if one is pending, null otherwise. */
 export async function completeGoogleRedirectIfNeeded(): Promise<User | null> {
   const result = await getRedirectResult(auth)
   return result?.user ?? null
 }
 
-/** Signs in with Google via popup (desktop) or redirect (mobile). */
+/**
+ * Signs in with Google via popup on all platforms.
+ * Falls back to redirect only if the popup is explicitly blocked by the browser.
+ *
+ * Popup is preferred because signInWithRedirect on iOS opens in Safari, which has
+ * isolated storage from the home-screen PWA — the auth token never reaches the app.
+ */
 export async function signInWithGoogle(): Promise<User> {
-  // Sign out any lingering anonymous session so it doesn't interfere with the popup.
   if (auth.currentUser?.isAnonymous) {
     await signOut(auth)
   }
 
-  if (usePopup()) {
-    try {
-      const result = await signInWithPopup(auth, googleProvider)
-      return result.user
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code
-      if (code === 'auth/popup-blocked') {
-        await signInWithRedirect(auth, googleProvider)
-        throw new GoogleRedirectPending()
-      }
-      throw err
+  try {
+    const result = await signInWithPopup(auth, googleProvider)
+    return result.user
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code
+    if (code === 'auth/popup-blocked') {
+      await signInWithRedirect(auth, googleProvider)
+      throw new GoogleRedirectPending()
     }
+    throw err
   }
-
-  await signInWithRedirect(auth, googleProvider)
-  throw new GoogleRedirectPending()
 }
 
 export function googleAuthErrorMessage(error: unknown): string {

@@ -19,6 +19,8 @@ async function getAuthUser(): Promise<User | null> {
   } catch {
     // ignore redirect errors
   }
+  // auth.currentUser may already be set after getRedirectResult processed the redirect
+  if (auth.currentUser) return auth.currentUser
   return new Promise<User | null>((resolve) => {
     const unsub = onAuthStateChanged(auth, (user) => {
       unsub()
