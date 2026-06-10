@@ -81,7 +81,7 @@ export function LandingScreen() {
               </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 320, marginInline: 'auto' }}>
+            <div style={{ maxWidth: 320, marginInline: 'auto' }}>
               {error && <div role="alert" style={errorStyle}>{error}</div>}
 
               <Button
@@ -91,11 +91,24 @@ export function LandingScreen() {
                 disabled={busy}
                 onClick={() => void handleParent()}
               >
-                {busy ? 'Signing in…' : 'Sign in with Google'}
+                {busy ? 'Signing in…' : "I'm a Parent — Set up this device"}
               </Button>
-              <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--ink-3)', margin: '4px 0 0' }}>
-                Parents sign in here. Children tap their name when the app opens.
-              </p>
+
+              <div
+                style={{
+                  marginTop: 28,
+                  padding: '14px 16px',
+                  background: 'var(--surface)',
+                  borderRadius: 'var(--r-lg)',
+                  boxShadow: 'var(--sh-1)',
+                  textAlign: 'center',
+                }}
+              >
+                <div className="t-cap" style={{ marginBottom: 4 }}>For children</div>
+                <p style={{ fontSize: 13, color: 'var(--ink-2)', margin: 0 }}>
+                  Ask a parent to sign in on this device first. After that you'll tap your name to play.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -106,6 +119,7 @@ export function LandingScreen() {
 
 const errorStyle: CSSProperties = {
   padding: '10px 14px',
+  marginBottom: 12,
   background: 'oklch(0.97 0.02 15)',
   borderRadius: 'var(--r-sm)',
   color: 'oklch(0.45 0.15 15)',

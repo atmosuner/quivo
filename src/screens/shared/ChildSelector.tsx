@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { Avatar } from '../../components/index.ts'
+import { shield } from '../../components/icons/icons.tsx'
 import { verifyParentPin } from '../../lib/security/parentPin.ts'
 import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 import type { Child } from '../../types/domain.ts'
+
+const Shield = shield
 
 type Phase = 'select' | 'pin'
 
@@ -155,6 +158,8 @@ export function ChildSelector() {
     )
   }
 
+  const goToParent = () => useAppStore.getState().setMode('parent')
+
   return (
     <div className="q-app">
       <div className="q-main">
@@ -211,6 +216,29 @@ export function ChildSelector() {
                 </button>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={goToParent}
+              style={{
+                marginTop: 48,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 16px',
+                borderRadius: 99,
+                border: '1px solid var(--line)',
+                background: 'var(--surface)',
+                boxShadow: 'var(--sh-1)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font)',
+                fontWeight: 700,
+                fontSize: 13,
+                color: 'var(--ink-2)',
+              }}
+            >
+              <Shield size={14} stroke="var(--brand)" /> Parent area
+            </button>
           </div>
         </div>
       </div>
