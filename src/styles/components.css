@@ -602,6 +602,27 @@
   background: var(--surface-3);
 }
 
+/* Firebase phone auth reCAPTCHA (app-level container survives React remounts) */
+.quivo-recaptcha-host {
+  display: flex;
+  justify-content: center;
+  margin: 16px auto 0;
+  max-width: 320px;
+  min-height: 78px;
+}
+
+.quivo-recaptcha-host--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Parent PIN gate */
 .pin-gate {
   padding: 72px 24px 40px;

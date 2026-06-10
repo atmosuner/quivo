@@ -4,12 +4,17 @@ import {
   linkWithCredential,
   signInWithCredential,
   PhoneAuthProvider,
-  RecaptchaVerifier,
   type ConfirmationResult,
 } from 'firebase/auth'
 import { Button, Field } from '../../components/index.ts'
 import { shield } from '../../components/icons/icons.tsx'
 import { auth } from '../../lib/firebase/app.ts'
+import { normalizePhoneNumber, phoneAuthErrorMessage } from '../../lib/firebase/phoneAuth.ts'
+import {
+  acquireRecaptcha,
+  RECAPTCHA_CONTAINER_ID,
+  resetRecaptcha,
+} from '../../lib/firebase/recaptcha.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 
@@ -86,45 +91,65 @@ export function ParentGate() {
   const [otp, setOtp] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [recaptchaReady, setRecaptchaReady] = useState(false)
 
   const confirmationRef = useRef<ConfirmationResult | null>(null)
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null)
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null)
+  const autoSendStartedRef = useRef(false)
 
-  const getRecaptcha = () => {
-    if (!recaptchaRef.current && recaptchaContainerRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(
-        auth,
-        recaptchaContainerRef.current,
-        { size: 'invisible' },
-      )
+  useEffect(() => {
+    resetRecaptcha()
+    let cancelled = false
+
+    void acquireRecaptcha()
+      .then(() => {
+        if (!cancelled) setRecaptchaReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMessage('Could not load verification. Refresh and try again.')
+        }
+      })
+
+    return () => {
+      cancelled = true
     }
-    return recaptchaRef.current!
-  }
+  }, [])
 
-  const sendOtp = async (phone: string) => {
+  const sendOtp = async (rawPhone: string) => {
+    const phone = normalizePhoneNumber(rawPhone)
+    if (!phone) {
+      setMessage('Use international format with country code (example: +1 555 000 0000).')
+      return
+    }
+
     setBusy(true)
     setMessage(null)
     try {
-      confirmationRef.current = await signInWithPhoneNumber(auth, phone, getRecaptcha())
+      const appVerifier = await acquireRecaptcha()
+      confirmationRef.current = await signInWithPhoneNumber(auth, phone, appVerifier)
+      setPhoneInput(phone)
       setStep('otp')
-    } catch {
-      setMessage('Could not send code. Check the number and try again.')
-      recaptchaRef.current?.clear()
-      recaptchaRef.current = null
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Phone auth send failed:', error)
+      setMessage(phoneAuthErrorMessage(error))
+      resetRecaptcha()
+      setRecaptchaReady(false)
+      try {
+        await acquireRecaptcha()
+        setRecaptchaReady(true)
+      } catch {
+        setMessage('Could not reload verification. Refresh and try again.')
+      }
     } finally {
       setBusy(false)
     }
   }
 
   useEffect(() => {
-    if (existingPhone) {
-      void sendOtp(existingPhone)
-    }
-    return () => {
-      recaptchaRef.current?.clear()
-    }
-  }, [])
+    if (!existingPhone || !recaptchaReady || autoSendStartedRef.current) return
+    autoSendStartedRef.current = true
+    void sendOtp(existingPhone)
+  }, [existingPhone, recaptchaReady])
 
   const verifyOtp = async (code: string) => {
     if (!confirmationRef.current || busy) return
@@ -178,6 +203,7 @@ export function ParentGate() {
   }
 
   const displayPhone = existingPhone ?? phoneInput
+  const phoneReady = recaptchaReady && !busy
 
   return (
     <div className="q-app">
@@ -208,7 +234,7 @@ export function ParentGate() {
               style={{ marginTop: 8, maxWidth: 280, marginInline: 'auto' }}
             >
               {step === 'phone'
-                ? 'Enter your phone number to receive a verification code.'
+                ? 'Enter your phone number with country code, complete verification, then send the code.'
                 : `We sent a 6-digit code to ${displayPhone}.`}
             </p>
 
@@ -221,16 +247,17 @@ export function ParentGate() {
                   value={phoneInput}
                   onChange={(e) => setPhoneInput(e.target.value)}
                   disabled={busy}
+                  autoComplete="tel"
                 />
                 {message && <div className="pin-message">{message}</div>}
                 <Button
                   variant="primary"
                   size="md"
                   block
-                  disabled={busy || !phoneInput.trim()}
-                  onClick={() => void sendOtp(phoneInput.trim())}
+                  disabled={!phoneReady || !phoneInput.trim()}
+                  onClick={() => void sendOtp(phoneInput)}
                 >
-                  {busy ? 'Sending…' : 'Send code'}
+                  {busy ? 'Sending…' : recaptchaReady ? 'Send code' : 'Loading verification…'}
                 </Button>
               </div>
             )}
@@ -244,10 +271,33 @@ export function ParentGate() {
                   onDigit={handleDigit}
                   onBackspace={handleBackspace}
                 />
+                <Button
+                  variant="ghost"
+                  size="md"
+                  block
+                  style={{ marginTop: 12, maxWidth: 320, marginInline: 'auto' }}
+                  disabled={busy}
+                  onClick={() => {
+                    setStep('phone')
+                    setOtp('')
+                    setMessage(null)
+                    resetRecaptcha()
+                    setRecaptchaReady(false)
+                    void acquireRecaptcha()
+                      .then(() => setRecaptchaReady(true))
+                      .catch(() => setMessage('Could not reload verification. Refresh and try again.'))
+                  }}
+                >
+                  Resend code
+                </Button>
               </>
             )}
 
-            <div ref={recaptchaContainerRef} />
+            <div
+              id={RECAPTCHA_CONTAINER_ID}
+              className={`quivo-recaptcha-host${step === 'otp' ? ' quivo-recaptcha-host--hidden' : ''}`}
+              aria-hidden={step === 'otp'}
+            />
 
             <Button
               variant="ghost"
