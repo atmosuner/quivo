@@ -77,6 +77,7 @@ export async function bootstrapQuivoApp(repo?: DataRepository): Promise<void> {
       return
     }
 
+    localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
     await loadParentFamily(profile)
   } catch {
     goToOnboarding()

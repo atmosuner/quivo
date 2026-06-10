@@ -116,12 +116,87 @@ function SetPinModal({ childId, childName, hasPin, onClose }: {
   )
 }
 
+function SetParentPinModal({ onClose }: { onClose: () => void }) {
+  const snapshot = useFamilyStore((state) => state.snapshot)
+  const setParentPin = useFamilyStore((state) => state.setParentPin)
+  const [pin, setPin] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const hasPin = Boolean(snapshot?.family.parentPinHash)
+
+  const handleSave = async () => {
+    if (!isValidPin(pin)) { setError('PIN must be exactly 4 digits.'); return }
+    if (pin !== confirm) { setError("PINs don't match."); return }
+    setBusy(true)
+    await setParentPin(pin)
+    onClose()
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(0,0,0,0.45)',
+        display: 'flex', alignItems: 'flex-end',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%',
+          background: 'var(--bg)',
+          borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
+          padding: '24px 20px 40px',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="t-h3" style={{ marginBottom: 4 }}>
+          {hasPin ? 'Change parent PIN' : 'Set parent PIN'}
+        </div>
+        <p className="t-body" style={{ color: 'var(--ink-2)', marginBottom: 20, fontSize: 14 }}>
+          This PIN is required to access the parent area.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input
+            className="field-input"
+            type="number"
+            inputMode="numeric"
+            placeholder="New 4-digit PIN"
+            value={pin}
+            maxLength={4}
+            onChange={(e) => { setPin(e.target.value.slice(0, 4)); setError(null) }}
+            autoFocus
+          />
+          <input
+            className="field-input"
+            type="number"
+            inputMode="numeric"
+            placeholder="Confirm PIN"
+            value={confirm}
+            maxLength={4}
+            onChange={(e) => { setConfirm(e.target.value.slice(0, 4)); setError(null) }}
+          />
+          {error && (
+            <div style={{ fontSize: 13, color: 'oklch(0.55 0.18 15)', fontWeight: 600 }}>{error}</div>
+          )}
+          <Button variant="primary" size="md" block disabled={busy} onClick={() => void handleSave()}>
+            {busy ? 'Saving…' : 'Save PIN'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function ParentDashboard() {
   const snapshot = useFamilyStore((state) => state.snapshot)
   const setParentScreen = useAppStore((state) => state.setParentScreen)
   const setMode = useAppStore((state) => state.setMode)
   const lock = useParentGateStore((state) => state.lock)
   const [pinModalChildId, setPinModalChildId] = useState<string | null>(null)
+  const [showParentPinModal, setShowParentPinModal] = useState(false)
 
   if (!snapshot) return null
 
@@ -437,6 +512,39 @@ export function ParentDashboard() {
             />
           </div>
         </div>
+
+        <div className="t-eyebrow" style={{ margin: '24px 2px 12px' }}>
+          Security
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowParentPinModal(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            background: 'var(--surface)',
+            borderRadius: 'var(--r-lg)',
+            boxShadow: 'var(--sh-2)',
+            padding: '14px 16px',
+            border: 'none',
+            font: 'inherit',
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <LockIcon size={16} stroke="var(--brand)" />
+            <div>
+              <div className="t-h3" style={{ fontSize: 15 }}>Parent PIN</div>
+              <div className="t-cap" style={{ marginTop: 1 }}>
+                {family.parentPinHash ? 'Change the PIN for the parent area' : 'Set a PIN for the parent area'}
+              </div>
+            </div>
+          </div>
+          <ChevR size={16} stroke="var(--ink-4)" />
+        </button>
       </div>
     </div>
 
@@ -447,6 +555,9 @@ export function ParentDashboard() {
         hasPin={!!pinChild.pinHash}
         onClose={() => setPinModalChildId(null)}
       />
+    )}
+    {showParentPinModal && (
+      <SetParentPinModal onClose={() => setShowParentPinModal(false)} />
     )}
     </>
   )

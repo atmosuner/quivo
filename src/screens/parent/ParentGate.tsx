@@ -1,80 +1,72 @@
 import { useEffect, useState } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { Button } from '../../components/index.ts'
 import { shield } from '../../components/icons/icons.tsx'
-import { auth } from '../../lib/firebase/app.ts'
-import {
-  completeGoogleRedirectIfNeeded,
-  googleAuthErrorMessage,
-  GoogleRedirectPending,
-  signInWithGoogle,
-} from '../../lib/firebase/googleAuth.ts'
+import { isValidPin, verifyParentPin } from '../../lib/security/parentPin.ts'
+import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 
 const Shield = shield
 
+type Phase = 'enter' | 'create' | 'confirm'
+
 export function ParentGate() {
+  const snapshot = useFamilyStore((state) => state.snapshot)
+  const setParentPin = useFamilyStore((state) => state.setParentPin)
   const unlock = useParentGateStore((state) => state.unlock)
   const lock = useParentGateStore((state) => state.lock)
 
-  const [message, setMessage] = useState<string | null>(null)
+  const hasPin = Boolean(snapshot?.family.parentPinHash)
+  const [phase, setPhase] = useState<Phase>(hasPin ? 'enter' : 'create')
+  const [pin, setPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [error, setError] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [hasGoogleLinked, setHasGoogleLinked] = useState(false)
 
+  // If snapshot reloads and PIN now exists (e.g. just saved), switch to enter phase
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      setHasGoogleLinked(
-        user?.providerData.some((provider) => provider.providerId === 'google.com') ?? false,
-      )
-    })
-    return unsub
-  }, [])
+    if (hasPin && phase === 'create') setPhase('enter')
+  }, [hasPin, phase])
 
-  useEffect(() => {
-    let cancelled = false
-    setBusy(true)
-    setMessage('Checking sign-in…')
+  const activePin = phase === 'confirm' ? confirmPin : pin
+  const setActivePin = phase === 'confirm'
+    ? (v: string) => setConfirmPin(v)
+    : (v: string) => setPin(v)
 
-    void completeGoogleRedirectIfNeeded()
-      .then((user) => {
-        if (cancelled) return
-        if (user) {
-          unlock()
-          return
-        }
-        setMessage(null)
-      })
-      .catch((error) => {
-        if (!cancelled) setMessage(googleAuthErrorMessage(error))
-      })
-      .finally(() => {
-        if (!cancelled) setBusy(false)
-      })
+  const handleDigit = (d: string) => {
+    if (activePin.length >= 4) return
+    const next = activePin + d
+    setActivePin(next)
+    setError(false)
+    if (next.length === 4) void handleFourDigits(next)
+  }
 
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const handleDelete = () => {
+    setActivePin(activePin.slice(0, -1))
+    setError(false)
+  }
 
-  const handleGoogleSignIn = async () => {
-    if (hasGoogleLinked) {
-      unlock()
-      return
-    }
-
-    setBusy(true)
-    setMessage(null)
-    try {
-      await signInWithGoogle()
-      unlock()
-    } catch (error) {
-      if (error instanceof GoogleRedirectPending) {
-        setMessage('Redirecting to Google…')
-        return
+  const handleFourDigits = async (digits: string) => {
+    if (phase === 'enter') {
+      const { parentPinHash, parentPinSalt } = snapshot!.family
+      const ok = await verifyParentPin(digits, parentPinSalt ?? null, parentPinHash ?? null)
+      if (ok) {
+        unlock()
+      } else {
+        setError(true)
+        setPin('')
       }
-      setMessage(googleAuthErrorMessage(error))
-      setBusy(false)
+    } else if (phase === 'create') {
+      if (!isValidPin(digits)) { setError(true); setPin(''); return }
+      setPhase('confirm')
+    } else if (phase === 'confirm') {
+      if (digits === pin) {
+        setBusy(true)
+        await setParentPin(pin)
+        unlock()
+      } else {
+        setError(true)
+        setConfirmPin('')
+      }
     }
   }
 
@@ -83,11 +75,31 @@ export function ParentGate() {
     useAppStore.getState().setMode('child')
   }
 
+  const subtitle =
+    phase === 'enter' ? 'Enter your PIN' :
+    phase === 'create' ? 'Create a 4-digit parent PIN' :
+    'Confirm your PIN'
+
+  const errorMsg =
+    phase === 'enter' ? 'Wrong PIN — try again' :
+    phase === 'confirm' ? "PINs don't match — try again" :
+    'Invalid PIN'
+
+  const displayPin = phase === 'confirm' ? confirmPin : pin
+
   return (
     <div className="q-app">
       <div className="q-main">
         <div className="q-scroll">
-          <div className="pin-gate">
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              paddingTop: 80,
+              paddingBottom: 48,
+            }}
+          >
             <div
               className="g-brand"
               style={{
@@ -104,49 +116,129 @@ export function ParentGate() {
               <Shield size={30} />
             </div>
 
-            <h1 className="t-h1" style={{ marginTop: 18 }}>
+            <div className="t-h2" style={{ marginTop: 18, marginBottom: 4 }}>
               Parent area
-            </h1>
-            <p
-              className="t-body"
-              style={{ marginTop: 8, maxWidth: 280, marginInline: 'auto' }}
-            >
-              Sign in with Google to manage tasks, approvals, and rewards.
-            </p>
-
-            <div style={{ marginTop: 28, width: '100%', maxWidth: 320, marginInline: 'auto' }}>
-              {message && (
-                <div className="pin-message" role={busy ? 'status' : 'alert'}>
-                  {message}
-                </div>
-              )}
-              <Button
-                variant="primary"
-                size="md"
-                block
-                disabled={busy}
-                onClick={() => void handleGoogleSignIn()}
-              >
-                {busy
-                  ? 'Signing in…'
-                  : hasGoogleLinked
-                    ? 'Continue as parent'
-                    : 'Continue with Google'}
-              </Button>
+            </div>
+            <div className="t-body" style={{ color: 'var(--ink-3)', marginBottom: 36 }}>
+              {subtitle}
             </div>
 
-            <Button
-              variant="ghost"
-              size="md"
-              block
-              style={{ marginTop: 18, maxWidth: 320, marginInline: 'auto' }}
-              onClick={exitToChild}
+            {/* PIN dots */}
+            <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    background: i < displayPin.length
+                      ? (error ? 'oklch(0.55 0.18 15)' : 'var(--brand)')
+                      : 'var(--line)',
+                    transition: 'background 0.15s',
+                  }}
+                />
+              ))}
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'oklch(0.55 0.18 15)',
+                  marginBottom: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {errorMsg}
+              </div>
+            )}
+            {!error && <div style={{ height: 29 }} />}
+
+            {/* Number pad */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 72px)',
+                gridTemplateRows: 'repeat(4, 72px)',
+                gap: 8,
+                opacity: busy ? 0.5 : 1,
+                pointerEvents: busy ? 'none' : undefined,
+              }}
             >
-              Back to child view
-            </Button>
+              {['1','2','3','4','5','6','7','8','9'].map((d) => (
+                <PadButton key={d} label={d} onClick={() => handleDigit(d)} />
+              ))}
+              <div />
+              <PadButton label="0" onClick={() => handleDigit('0')} />
+              <PadButton label="⌫" onClick={handleDelete} />
+            </div>
+
+            {phase === 'confirm' && (
+              <button
+                type="button"
+                onClick={() => { setPhase('create'); setPin(''); setConfirmPin(''); setError(false) }}
+                style={{
+                  marginTop: 20,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--ink-3)',
+                  fontSize: 14,
+                  fontFamily: 'var(--font)',
+                  fontWeight: 600,
+                }}
+              >
+                ← Back
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={exitToChild}
+              style={{
+                marginTop: phase === 'confirm' ? 12 : 28,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--ink-3)',
+                fontSize: 14,
+                fontFamily: 'var(--font)',
+                fontWeight: 600,
+              }}
+            >
+              ← Back to child view
+            </button>
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+function PadButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        width: 72,
+        height: 72,
+        borderRadius: '50%',
+        border: '1px solid var(--line)',
+        background: 'var(--surface)',
+        boxShadow: 'var(--sh-1)',
+        fontSize: label === '⌫' ? 20 : 24,
+        fontFamily: 'var(--font)',
+        fontWeight: 600,
+        cursor: 'pointer',
+        color: 'var(--ink)',
+        display: 'grid',
+        placeItems: 'center',
+      }}
+      className="pressable"
+    >
+      {label}
+    </button>
   )
 }
