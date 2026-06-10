@@ -6,14 +6,14 @@ import { ParentShell } from './screens/parent/ParentShell.tsx'
 import { bootstrapQuivoApp } from './stores/bootstrap.ts'
 import { useAppStore } from './stores/appStore.ts'
 import { useFamilyStore } from './stores/familyStore.ts'
-import { useParentGateStore } from './stores/parentGateStore.ts'
+import { useParentSessionValid } from './stores/parentGateStore.ts'
 
 export default function App() {
   const mode = useAppStore((state) => state.mode)
   const isLoading = useFamilyStore((state) => state.isLoading)
   const error = useFamilyStore((state) => state.error)
   const snapshot = useFamilyStore((state) => state.snapshot)
-  const isSessionValid = useParentGateStore((state) => state.isSessionValid)
+  const parentSessionValid = useParentSessionValid()
 
   useEffect(() => {
     void bootstrapQuivoApp()
@@ -38,7 +38,7 @@ export default function App() {
   }
 
   if (mode === 'parent') {
-    if (!isSessionValid()) {
+    if (!parentSessionValid) {
       return <ParentGate />
     }
     return <ParentShell />

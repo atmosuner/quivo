@@ -1,7 +1,11 @@
 import { useEffect } from 'react'
 import { useAppStore } from '../../stores/appStore.ts'
 import { useFamilyStore } from '../../stores/familyStore.ts'
-import { useParentGateStore } from '../../stores/parentGateStore.ts'
+import {
+  PARENT_SESSION_MS,
+  useParentGateStore,
+  useParentSessionValid,
+} from '../../stores/parentGateStore.ts'
 import { ActionErrorBanner } from '../shared/ActionErrorBanner.tsx'
 import { AddTaskScreen } from './AddTaskScreen.tsx'
 import { ApprovalScreen } from './ApprovalScreen.tsx'
@@ -14,17 +18,27 @@ export function ParentShell() {
   const clearError = useFamilyStore((state) => state.clearError)
   const snapshot = useFamilyStore((state) => state.snapshot)
   const lock = useParentGateStore((state) => state.lock)
-  const isSessionValid = useParentGateStore((state) => state.isSessionValid)
+  const parentSessionValid = useParentSessionValid()
 
   useEffect(() => {
+    if (!parentSessionValid) {
+      lock()
+      return
+    }
+
     const timer = window.setInterval(() => {
-      if (!isSessionValid()) {
+      const { isUnlocked, unlockedAt } = useParentGateStore.getState()
+      if (
+        !isUnlocked ||
+        unlockedAt == null ||
+        Date.now() - unlockedAt >= PARENT_SESSION_MS
+      ) {
         lock()
       }
     }, 30_000)
 
     return () => window.clearInterval(timer)
-  }, [isSessionValid, lock])
+  }, [parentSessionValid, lock])
 
   if (isLoading) {
     return (

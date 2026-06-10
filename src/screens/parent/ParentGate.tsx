@@ -160,9 +160,14 @@ export function ParentGate() {
   }, [existingPhone, recaptchaReady])
 
   const verifyOtp = async (code: string) => {
-    if (!confirmationRef.current || busy) return
+    if (busy) return
+    if (!confirmationRef.current) {
+      setMessage('Code session expired. Tap Resend code and try again.')
+      setOtp('')
+      return
+    }
     setBusy(true)
-    setMessage(null)
+    setMessage('Verifying code…')
     try {
       const credential = PhoneAuthProvider.credential(
         confirmationRef.current.verificationId,
@@ -183,8 +188,16 @@ export function ParentGate() {
         await signInWithCredential(auth, credential)
       }
       unlock()
-    } catch {
-      setMessage('Incorrect code. Try again.')
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Phone auth verify failed:', error)
+      const errCode = (error as { code?: string })?.code
+      if (errCode === 'auth/code-expired') {
+        setMessage('Code expired. Tap Resend code.')
+      } else if (errCode === 'auth/invalid-verification-code') {
+        setMessage('Incorrect code. Try again.')
+      } else {
+        setMessage('Could not verify code. Try again or resend.')
+      }
       setOtp('')
     } finally {
       setBusy(false)
@@ -295,7 +308,11 @@ export function ParentGate() {
             {step === 'otp' && (
               <>
                 <PinDots length={OTP_LENGTH} filled={otp.length} />
-                {message && <div className="pin-message">{message}</div>}
+                {message && (
+                  <div className="pin-message" role={busy ? 'status' : 'alert'}>
+                    {message}
+                  </div>
+                )}
                 <PinKeypad
                   disabled={busy}
                   onDigit={handleDigit}
