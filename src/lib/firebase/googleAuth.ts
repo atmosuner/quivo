@@ -29,8 +29,10 @@ export function googleAuthErrorMessage(error: unknown): string {
       return 'Sign-in was cancelled.'
     case 'auth/network-request-failed':
       return 'Network error. Check your connection and try again.'
+    case 'auth/unauthorized-domain':
+      return 'This domain is not authorized for sign-in. Add it in Firebase Console → Authentication → Authorized domains.'
     default:
-      return 'Sign-in failed. Please try again.'
+      return `Sign-in failed (${code ?? 'unknown'}). Please try again.`
   }
 }
 

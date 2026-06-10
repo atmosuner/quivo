@@ -28,6 +28,7 @@ export function LandingScreen() {
       await useFamilyStore.getState().bootstrap()
       useAppStore.getState().setMode('parent')
     } catch (err) {
+      console.error('[Quivo] sign-in error:', err)
       setError(googleAuthErrorMessage(err))
       setBusy(false)
     }
