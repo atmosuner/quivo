@@ -2,13 +2,23 @@ import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
+function requireFirebaseEnv(name: keyof ImportMetaEnv): string {
+  const value = import.meta.env[name]
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(
+      `Missing Firebase config (${name}). For local dev, copy .env.example to .env. For GitHub Pages, add repository secrets and redeploy.`,
+    )
+  }
+  return value.trim()
+}
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: requireFirebaseEnv('VITE_FIREBASE_API_KEY'),
+  authDomain: requireFirebaseEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: requireFirebaseEnv('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: requireFirebaseEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: requireFirebaseEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: requireFirebaseEnv('VITE_FIREBASE_APP_ID'),
 }
 
 export const firebaseApp = initializeApp(firebaseConfig)
