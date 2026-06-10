@@ -8,7 +8,7 @@ import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useSessionStore } from '../../stores/sessionStore.ts'
 
-type Phase = 'confirm' | 'completing' | 'done-in-browser' | 'error'
+type Phase = 'confirm' | 'open-in-app' | 'completing' | 'error'
 
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
@@ -21,16 +21,26 @@ export function ChildJoinScreen() {
   const [email, setEmail] = useState(linkData?.email ?? '')
   const [phase, setPhase] = useState<Phase>('confirm')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    // Auto-complete if we already know the email (same device)
-    if (linkData?.email) {
+    if (!linkData) return
+    if (!isStandalone()) {
+      // Don't consume the link — show copy-to-app screen instead
+      setPhase('open-in-app')
+      return
+    }
+    if (linkData.email) {
       void completeJoin(linkData.email)
     }
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const completeJoin = async (emailAddr: string) => {
     if (!linkData) return
+    if (!isStandalone()) {
+      setPhase('open-in-app')
+      return
+    }
     setPhase('completing')
     setErrorMsg(null)
 
@@ -38,18 +48,12 @@ export function ChildJoinScreen() {
       const user = await completeEmailLinkSignIn(emailAddr)
 
       if (isInvitation) {
-        // New child joining for the first time
         await saveUserProfile(user.uid, {
           role: 'child',
           familyId: linkData.familyId!,
           childId: linkData.childId!,
           createdAt: new Date().toISOString(),
         })
-
-        if (!isStandalone()) {
-          setPhase('done-in-browser')
-          return
-        }
 
         useFamilyStore.getState().setRepository(new FirestoreRepository(linkData.familyId!))
         useSessionStore.getState().clearEffects()
@@ -63,18 +67,12 @@ export function ChildJoinScreen() {
           if (exists) await useFamilyStore.getState().switchActiveChild(linkData.childId!)
         }
       } else {
-        // Returning child — look up existing profile
         const profile = await getUserProfile(user.uid)
         if (!profile) {
           setErrorMsg(
             "No Quivo account found for this email. Ask your parent to send you an invitation.",
           )
           setPhase('error')
-          return
-        }
-
-        if (!isStandalone()) {
-          setPhase('done-in-browser')
           return
         }
 
@@ -102,6 +100,16 @@ export function ChildJoinScreen() {
             : (err as { message?: string })?.message ?? 'Could not complete sign-in. Please try again.'
       setErrorMsg(errorMessage)
       setPhase('error')
+    }
+  }
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch {
+      // clipboard not available — user can select and copy manually
     }
   }
 
@@ -136,32 +144,36 @@ export function ChildJoinScreen() {
         <div className="q-scroll">
           <div className="q-body" style={{ paddingTop: 80, paddingBottom: 48 }}>
             <div style={{ maxWidth: 340, marginInline: 'auto', textAlign: 'center' }}>
-              {phase === 'completing' && (
-                <div className="t-body" role="status" style={{ color: 'var(--ink-2)' }}>
-                  {isInvitation ? 'Joining your family…' : 'Signing in…'}
-                </div>
-              )}
 
-              {phase === 'done-in-browser' && (
+              {phase === 'open-in-app' && (
                 <>
                   <div
                     style={{
                       width: 64,
                       height: 64,
                       borderRadius: '50%',
-                      background: 'var(--success-tint)',
+                      background: 'var(--brand-tint)',
                       display: 'grid',
                       placeItems: 'center',
                       margin: '0 auto 20px',
                       fontSize: 28,
                     }}
                   >
-                    ✅
+                    📋
                   </div>
-                  <h1 className="t-h1" style={{ marginBottom: 10 }}>You're signed in!</h1>
+                  <h1 className="t-h1" style={{ marginBottom: 10 }}>Open in the Quivo app</h1>
                   <p className="t-body" style={{ color: 'var(--ink-2)', marginBottom: 24 }}>
-                    Now open the <strong>Quivo</strong> app from your home screen to start playing.
+                    You opened this link in a browser. To sign in to the home screen app, copy this link and paste it inside Quivo.
                   </p>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    block
+                    style={{ marginBottom: 12 }}
+                    onClick={() => void handleCopyLink()}
+                  >
+                    {copied ? '✓ Copied!' : 'Copy sign-in link'}
+                  </Button>
                   <div
                     style={{
                       background: 'var(--surface)',
@@ -169,13 +181,26 @@ export function ChildJoinScreen() {
                       padding: '14px 16px',
                       boxShadow: 'var(--sh-1)',
                       textAlign: 'left',
-                      fontSize: 14,
+                      fontSize: 13,
                       color: 'var(--ink-2)',
+                      lineHeight: 1.5,
                     }}
                   >
-                    Tap the Quivo icon on your home screen — you'll be signed in automatically.
+                    <strong style={{ color: 'var(--ink)' }}>Steps:</strong>
+                    <ol style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                      <li>Tap <strong>Copy sign-in link</strong> above</li>
+                      <li>Open <strong>Quivo</strong> from your home screen</li>
+                      <li>Tap <strong>I'm a Child</strong> → enter your email → you'll see a <em>Paste link</em> field</li>
+                      <li>Paste the link and tap <strong>Continue</strong></li>
+                    </ol>
                   </div>
                 </>
+              )}
+
+              {phase === 'completing' && (
+                <div className="t-body" role="status" style={{ color: 'var(--ink-2)' }}>
+                  {isInvitation ? 'Joining your family…' : 'Signing in…'}
+                </div>
               )}
 
               {phase === 'confirm' && (
@@ -231,6 +256,7 @@ export function ChildJoinScreen() {
                   </Button>
                 </>
               )}
+
             </div>
           </div>
         </div>
