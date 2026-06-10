@@ -1,4 +1,4 @@
 import { describe } from 'vitest'
 
-// PIN-based parent auth removed — replaced by Firebase Phone Auth.
+// PIN-based parent auth removed — parent area uses Google Sign-In.
 describe.skip('parentPin', () => {})
