@@ -38,15 +38,6 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const child = getActiveChild(snapshot.family)
   const requireApproval = snapshot.family.settings.requireApprovalDefault
 
-  const deviceRole = useAppStore.getState().deviceRole
-
-  const openParent = () => {
-    const app = useAppStore.getState()
-    app.setParentScreen('dash')
-    app.setChildUnlocked(false)
-    app.setMode('parent')
-  }
-
   const handleDisconnect = () => {
     localStorage.removeItem(DEVICE_ROLE_KEY)
     localStorage.removeItem(DEVICE_FAMILY_ID_KEY)
@@ -83,12 +74,6 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     {
       head: 'Parent controls',
       rows: [
-        ...(deviceRole === 'parent' ? [{
-          icon: 'shield',
-          label: 'Parent area',
-          tone: '--brand',
-          action: openParent,
-        }] : []),
         {
           icon: 'check',
           label: 'Approval required',
