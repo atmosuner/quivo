@@ -3,7 +3,6 @@ import { signOut } from 'firebase/auth'
 import { IconTile, SubHead } from '../../../components/index.ts'
 import { chevR } from '../../../components/icons/icons.tsx'
 import { auth } from '../../../lib/firebase/app.ts'
-import { DEMO_STORAGE_KEY } from '../../../stores/bootstrap.ts'
 import { useFamilyStore } from '../../../stores/familyStore.ts'
 import { useAppStore } from '../../../stores/appStore.ts'
 import { useParentGateStore } from '../../../stores/parentGateStore.ts'
@@ -33,7 +32,6 @@ export interface SettingsScreenProps {
 export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const snapshot = useFamilyStore((state) => state.snapshot)
   const switchActiveChild = useFamilyStore((state) => state.switchActiveChild)
-  const resetFamily = useFamilyStore((state) => state.resetFamily)
   const exportData = useFamilyStore((state) => state.exportData)
   const [showInstallHint, setShowInstallHint] = useState(false)
 
@@ -49,12 +47,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   }
 
   const handleSignOut = () => {
-    const isDemo = localStorage.getItem(DEMO_STORAGE_KEY) === 'true'
-    if (isDemo) {
-      localStorage.removeItem(DEMO_STORAGE_KEY)
-    } else {
-      void signOut(auth)
-    }
+    void signOut(auth)
     useFamilyStore.setState({ snapshot: null, isLoading: true })
     useSessionStore.getState().clearEffects()
     useParentGateStore.getState().clearSession()
@@ -67,20 +60,6 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     exportData()
   }
 
-  const handleReset = () => {
-    const first = window.confirm(
-      'Reset all local Quivo data?\n\nYour current progress will be lost and the demo family will be restored.',
-    )
-    if (!first) return
-
-    const second = window.confirm(
-      'This cannot be undone.\n\nExport your data first if you want a backup. Continue with reset?',
-    )
-    if (second) {
-      void resetFamily()
-      onBack()
-    }
-  }
 
   const groups: SettingsGroup[] = [
     {
@@ -127,20 +106,14 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       rows: [
         {
           icon: 'pages',
-          label: 'Export local data',
+          label: 'Export data',
           tone: '--cat-reading',
           detail: 'JSON backup',
           action: handleExport,
         },
         {
-          icon: 'trash',
-          label: 'Reset local data',
-          tone: '--coin-ink',
-          action: handleReset,
-        },
-        {
           icon: 'user',
-          label: localStorage.getItem(DEMO_STORAGE_KEY) === 'true' ? 'Exit demo' : 'Sign out',
+          label: 'Sign out',
           tone: '--ink-3',
           action: handleSignOut,
         },

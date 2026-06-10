@@ -10,8 +10,7 @@ import {
 import { sendChildSignInLink } from '../../lib/firebase/emailInvite.ts'
 import { getUserProfile } from '../../lib/firebase/userProfile.ts'
 import { FirestoreRepository } from '../../lib/storage/firestoreRepository.ts'
-import { LocalStorageRepository } from '../../lib/storage/localStorage.ts'
-import { DEMO_STORAGE_KEY, PENDING_SETUP_ROLE_KEY } from '../../stores/bootstrap.ts'
+import { PENDING_SETUP_ROLE_KEY } from '../../stores/bootstrap.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
@@ -87,19 +86,6 @@ export function LandingScreen() {
     } finally {
       setBusy(false)
     }
-  }
-
-  // ── Demo ────────────────────────────────────────────────────────────────────
-
-  const handleDemo = async () => {
-    setError(null)
-    setBusy(true)
-    localStorage.setItem(DEMO_STORAGE_KEY, 'true')
-    useFamilyStore.getState().setRepository(new LocalStorageRepository())
-    useSessionStore.getState().clearEffects()
-    useParentGateStore.getState().clearSession()
-    useAppStore.getState().resetNavigation()
-    await useFamilyStore.getState().bootstrap()
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -244,21 +230,6 @@ export function LandingScreen() {
                 onClick={() => { setStep('childEmail'); setError(null) }}
               >
                 I'm a Child
-              </Button>
-
-              <div style={{ position: 'relative', textAlign: 'center', margin: '4px 0' }}>
-                <div style={{ height: 1, background: 'var(--line)', position: 'absolute', inset: '50% 0 auto' }} />
-                <span style={{ position: 'relative', background: 'var(--bg)', padding: '0 12px', color: 'var(--ink-3)', fontSize: 13 }}>or</span>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="md"
-                block
-                disabled={busy}
-                onClick={() => void handleDemo()}
-              >
-                {busy ? 'Loading…' : 'Try it out'}
               </Button>
             </div>
           </div>

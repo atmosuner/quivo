@@ -5,7 +5,6 @@ import { detectEmailLinkSignIn } from '../lib/firebase/emailInvite.ts'
 import { getUserProfile } from '../lib/firebase/userProfile.ts'
 import type { UserProfile } from '../lib/firebase/userProfile.ts'
 import { FirestoreRepository } from '../lib/storage/firestoreRepository.ts'
-import { LocalStorageRepository } from '../lib/storage/localStorage.ts'
 import type { DataRepository } from '../lib/storage/repository.ts'
 import { useAppStore } from './appStore.ts'
 import { useFamilyStore } from './familyStore.ts'
@@ -13,7 +12,6 @@ import { useParentGateStore } from './parentGateStore.ts'
 import { useSessionStore } from './sessionStore.ts'
 import type { OnboardingScreen } from '../types/navigation.ts'
 
-export const DEMO_STORAGE_KEY = 'quivo.demoMode'
 export const PENDING_SETUP_ROLE_KEY = 'quivo.pendingSetupRole'
 
 async function getAuthUser(): Promise<User | null> {
@@ -55,16 +53,8 @@ async function loadUserFamily(profile: UserProfile): Promise<void> {
 
 export async function bootstrapQuivoApp(repo?: DataRepository): Promise<void> {
   if (repo) {
+    // Test mode: use the provided in-memory repository directly.
     useFamilyStore.getState().setRepository(repo)
-    useSessionStore.getState().clearEffects()
-    useParentGateStore.getState().clearSession()
-    useAppStore.getState().resetNavigation()
-    await useFamilyStore.getState().bootstrap()
-    return
-  }
-
-  if (localStorage.getItem(DEMO_STORAGE_KEY) === 'true') {
-    useFamilyStore.getState().setRepository(new LocalStorageRepository())
     useSessionStore.getState().clearEffects()
     useParentGateStore.getState().clearSession()
     useAppStore.getState().resetNavigation()
