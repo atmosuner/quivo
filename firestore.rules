@@ -2,9 +2,14 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Parent profile — only the authenticated parent can read/write their own record.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Family data is accessible to anyone who knows the family UUID.
     // The UUID (128-bit random) acts as the shared secret for this family.
-    // No user accounts needed — device role is managed locally on each device.
+    // No user accounts needed on child devices — device role is managed locally.
     match /families/{familyId}/data/{document} {
       allow read, write: if true;
     }

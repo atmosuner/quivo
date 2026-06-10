@@ -1,12 +1,8 @@
 import { Button } from '../../components/index.ts'
 import { useAppStore } from '../../stores/appStore.ts'
-import { useParentGateStore } from '../../stores/parentGateStore.ts'
 
 export function InviteSentScreen() {
-  const unlock = useParentGateStore((state) => state.unlock)
-
   const goToDashboard = () => {
-    unlock()
     useAppStore.getState().setMode('parent')
   }
 

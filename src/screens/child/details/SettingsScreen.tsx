@@ -4,7 +4,6 @@ import { chevR } from '../../../components/icons/icons.tsx'
 import { DEVICE_FAMILY_ID_KEY, DEVICE_ROLE_KEY } from '../../../lib/storage/keys.ts'
 import { useFamilyStore } from '../../../stores/familyStore.ts'
 import { useAppStore } from '../../../stores/appStore.ts'
-import { useParentGateStore } from '../../../stores/parentGateStore.ts'
 import { useSessionStore } from '../../../stores/sessionStore.ts'
 import { InstallHint } from '../../shared/InstallHint.tsx'
 import { getActiveChild } from '../../shared/selectors.ts'
@@ -53,7 +52,6 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     localStorage.removeItem(DEVICE_FAMILY_ID_KEY)
     useFamilyStore.setState({ snapshot: null, isLoading: true })
     useSessionStore.getState().clearEffects()
-    useParentGateStore.getState().clearSession()
     useAppStore.getState().setDeviceRole('child')
     useAppStore.getState().setOnboardingScreen('landing')
     useAppStore.getState().setMode('onboarding')

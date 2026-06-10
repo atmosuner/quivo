@@ -2,12 +2,12 @@ import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Avatar, Button } from '../../components/index.ts'
 import { FirestoreRepository } from '../../lib/storage/firestoreRepository.ts'
-import { DEVICE_FAMILY_ID_KEY, DEVICE_ROLE_KEY } from '../../lib/storage/keys.ts'
+import { auth } from '../../lib/firebase/app.ts'
+import { saveUserProfile } from '../../lib/firebase/userProfile.ts'
 import { createNewFamilySnapshot } from '../../data/newFamily.ts'
 import type { ChildAvatar } from '../../types/domain.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 import { useFamilyStore } from '../../stores/familyStore.ts'
-import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useSessionStore } from '../../stores/sessionStore.ts'
 
 const AVATAR_PRESETS: ChildAvatar[] = [
@@ -30,11 +30,14 @@ export function ParentSetupScreen() {
     if (!familyName.trim()) { setError('Please enter your family name.'); return }
     if (!childName.trim()) { setError("Please enter your child's name."); return }
 
+    const user = auth.currentUser
+    if (!user) { setError('You need to be signed in. Please go back and sign in again.'); return }
+
     setBusy(true)
     setError(null)
 
     try {
-      const familyId = crypto.randomUUID()
+      const familyId = user.uid
       const childId = crypto.randomUUID()
       const snapshot = createNewFamilySnapshot(familyId, familyName.trim(), {
         id: childId,
@@ -44,16 +47,13 @@ export function ParentSetupScreen() {
 
       const repo = new FirestoreRepository(familyId)
       await repo.save(snapshot)
-
-      localStorage.setItem(DEVICE_ROLE_KEY, 'parent')
-      localStorage.setItem(DEVICE_FAMILY_ID_KEY, familyId)
+      await saveUserProfile(user.uid, { familyId, createdAt: new Date().toISOString() })
 
       useAppStore.getState().setDeviceRole('parent')
       useFamilyStore.getState().setRepository(repo)
       useSessionStore.getState().clearEffects()
-      useParentGateStore.getState().clearSession()
-      useAppStore.getState().resetNavigation()
       await useFamilyStore.getState().reload()
+      useAppStore.getState().setMode('parent')
     } catch (err) {
       const msg = (err as { message?: string })?.message ?? 'Something went wrong. Please try again.'
       setError(msg)

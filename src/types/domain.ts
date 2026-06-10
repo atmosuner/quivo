@@ -198,6 +198,4 @@ export interface Family {
   rewards: Reward[]
   approvals: Approval[]
   achievementProgress: AchievementProgress[]
-  parentPinHash?: string
-  parentPinSalt?: string
 }

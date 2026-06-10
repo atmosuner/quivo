@@ -6,7 +6,6 @@ import { FirestoreRepository } from '../../lib/storage/firestoreRepository.ts'
 import { DEVICE_FAMILY_ID_KEY, DEVICE_ROLE_KEY } from '../../lib/storage/keys.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 import { useFamilyStore } from '../../stores/familyStore.ts'
-import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useSessionStore } from '../../stores/sessionStore.ts'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -43,7 +42,6 @@ export function ChildJoinScreen() {
       useAppStore.getState().setDeviceRole('child')
       useFamilyStore.getState().setRepository(new FirestoreRepository(familyId))
       useSessionStore.getState().clearEffects()
-      useParentGateStore.getState().clearSession()
       useAppStore.getState().resetNavigation()
       await useFamilyStore.getState().bootstrap()
     } catch (err) {

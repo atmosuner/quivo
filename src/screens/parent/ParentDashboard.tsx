@@ -12,9 +12,8 @@ import {
 import { bell, chevR, flameFill, lock, shield, star } from '../../components/icons/icons.tsx'
 import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useAppStore } from '../../stores/appStore.ts'
-import { useParentGateStore } from '../../stores/parentGateStore.ts'
+import { signOutGoogle } from '../../lib/firebase/googleAuth.ts'
 import { isValidPin } from '../../lib/security/parentPin.ts'
-import { DEVICE_FAMILY_ID_KEY } from '../../lib/storage/keys.ts'
 import { getReferenceDate } from '../shared/selectors.ts'
 import {
   countPendingApprovals,
@@ -151,9 +150,10 @@ function SettingsRow({
 
 function QrModal({ onClose }: { onClose: () => void }) {
   const [qrUrl, setQrUrl] = useState<string | null>(null)
-  const familyId = localStorage.getItem(DEVICE_FAMILY_ID_KEY) ?? ''
+  const familyId = useFamilyStore((state) => state.snapshot?.family.id) ?? ''
 
   useEffect(() => {
+    if (!familyId) return
     void QRCode.toDataURL(familyId, { width: 240, margin: 2, color: { dark: '#000', light: '#fff' } })
       .then(setQrUrl)
   }, [familyId])
@@ -201,87 +201,10 @@ function QrModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function SetParentPinModal({ onClose }: { onClose: () => void }) {
-  const snapshot = useFamilyStore((state) => state.snapshot)
-  const setParentPin = useFamilyStore((state) => state.setParentPin)
-  const [pin, setPin] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const hasPin = Boolean(snapshot?.family.parentPinHash)
-
-  const handleSave = async () => {
-    if (!isValidPin(pin)) { setError('PIN must be exactly 4 digits.'); return }
-    if (pin !== confirm) { setError("PINs don't match."); return }
-    setBusy(true)
-    await setParentPin(pin)
-    onClose()
-  }
-
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.45)',
-        display: 'flex', alignItems: 'flex-end',
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: '100%',
-          background: 'var(--bg)',
-          borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
-          padding: '24px 20px 40px',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="t-h3" style={{ marginBottom: 4 }}>
-          {hasPin ? 'Change parent PIN' : 'Set parent PIN'}
-        </div>
-        <p className="t-body" style={{ color: 'var(--ink-2)', marginBottom: 20, fontSize: 14 }}>
-          This PIN is required to access the parent area.
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <input
-            className="field-input"
-            type="number"
-            inputMode="numeric"
-            placeholder="New 4-digit PIN"
-            value={pin}
-            maxLength={4}
-            onChange={(e) => { setPin(e.target.value.slice(0, 4)); setError(null) }}
-            autoFocus
-          />
-          <input
-            className="field-input"
-            type="number"
-            inputMode="numeric"
-            placeholder="Confirm PIN"
-            value={confirm}
-            maxLength={4}
-            onChange={(e) => { setConfirm(e.target.value.slice(0, 4)); setError(null) }}
-          />
-          {error && (
-            <div style={{ fontSize: 13, color: 'oklch(0.55 0.18 15)', fontWeight: 600 }}>{error}</div>
-          )}
-          <Button variant="primary" size="md" block disabled={busy} onClick={() => void handleSave()}>
-            {busy ? 'Saving…' : 'Save PIN'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function ParentDashboard() {
   const snapshot = useFamilyStore((state) => state.snapshot)
   const setParentScreen = useAppStore((state) => state.setParentScreen)
-  const setMode = useAppStore((state) => state.setMode)
-  const lock = useParentGateStore((state) => state.lock)
   const [pinModalChildId, setPinModalChildId] = useState<string | null>(null)
-  const [showParentPinModal, setShowParentPinModal] = useState(false)
   const [showQrModal, setShowQrModal] = useState(false)
 
   if (!snapshot) return null
@@ -292,12 +215,11 @@ export function ParentDashboard() {
   const weekDays = getFamilyWeekChartDays(family.children, referenceDate)
   const weekTotal = weekDays.reduce((sum, day) => sum + day.xp, 0)
 
-  const exitParent = () => {
-    lock()
-    setMode('child')
-    setParentScreen('dash')
-    // Return to child selector so children re-enter their PIN
-    useAppStore.getState().setChildUnlocked(false)
+  const handleSignOut = async () => {
+    await signOutGoogle()
+    useFamilyStore.setState({ snapshot: null, isLoading: false })
+    useAppStore.getState().setOnboardingScreen('landing')
+    useAppStore.getState().setMode('onboarding')
   }
 
   const pinChild = pinModalChildId ? family.children.find((c) => c.id === pinModalChildId) : null
@@ -322,25 +244,6 @@ export function ParentDashboard() {
           </div>
           <h1 className="t-h1">Family</h1>
         </div>
-        <button
-          type="button"
-          onClick={exitParent}
-          style={{
-            height: 38,
-            padding: '0 14px',
-            borderRadius: 99,
-            border: '1px solid var(--line)',
-            background: 'var(--surface)',
-            boxShadow: 'var(--sh-1)',
-            cursor: 'pointer',
-            fontFamily: 'var(--font)',
-            fontWeight: 700,
-            fontSize: 13,
-            color: 'var(--ink-2)',
-          }}
-        >
-          Exit
-        </button>
       </div>
 
       <div className="q-body">
@@ -600,20 +503,20 @@ export function ParentDashboard() {
         </div>
 
         <div className="t-eyebrow" style={{ margin: '24px 2px 12px' }}>
-          Security &amp; Devices
+          Devices &amp; Account
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <SettingsRow
-            icon={<LockIcon size={16} stroke="var(--brand)" />}
-            title="Parent PIN"
-            sub={family.parentPinHash ? 'Change the PIN for the parent area' : 'Set a PIN for the parent area'}
-            onClick={() => setShowParentPinModal(true)}
-          />
           <SettingsRow
             icon={<span style={{ fontSize: 18, lineHeight: 1 }}>📱</span>}
             title="Connect a child device"
             sub="Show QR code to link another device"
             onClick={() => setShowQrModal(true)}
+          />
+          <SettingsRow
+            icon={<span style={{ fontSize: 18, lineHeight: 1 }}>🚪</span>}
+            title="Sign out"
+            sub="Sign out of your Google account"
+            onClick={() => { void handleSignOut() }}
           />
         </div>
       </div>
@@ -626,9 +529,6 @@ export function ParentDashboard() {
         hasPin={!!pinChild.pinHash}
         onClose={() => setPinModalChildId(null)}
       />
-    )}
-    {showParentPinModal && (
-      <SetParentPinModal onClose={() => setShowParentPinModal(false)} />
     )}
     {showQrModal && (
       <QrModal onClose={() => setShowQrModal(false)} />

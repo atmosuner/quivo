@@ -52,7 +52,6 @@ interface FamilyState {
   declineApproval: (approvalId: string) => Promise<void>
   createTask: (input: CreateTaskInput) => Promise<void>
   setChildPin: (childId: string, pin: string | null) => Promise<void>
-  setParentPin: (pin: string) => Promise<void>
 }
 
 function enqueueServiceEffects(effects: GrantEffect[]): void {
@@ -250,20 +249,4 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     }
   },
 
-  setParentPin: async (pin) => {
-    const { snapshot, repo } = get()
-    if (!snapshot) return
-    try {
-      const parentPinSalt = generateParentPinSalt()
-      const parentPinHash = await hashParentPin(pin, parentPinSalt)
-      const updatedSnapshot = {
-        ...snapshot,
-        family: { ...snapshot.family, parentPinHash, parentPinSalt },
-      }
-      await repo.save(updatedSnapshot)
-      set({ snapshot: updatedSnapshot, error: null })
-    } catch (error) {
-      set({ error: toUserErrorMessage(error) })
-    }
-  },
 }))

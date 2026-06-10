@@ -1,21 +1,17 @@
 import { useEffect } from 'react'
 import { ChildShell } from './screens/shared/ChildShell.tsx'
 import { BootstrapError } from './screens/shared/BootstrapError.tsx'
-import { ParentGate } from './screens/parent/ParentGate.tsx'
 import { ParentShell } from './screens/parent/ParentShell.tsx'
 import { OnboardingShell } from './screens/onboarding/OnboardingShell.tsx'
 import { bootstrapQuivoApp } from './stores/bootstrap.ts'
 import { useAppStore } from './stores/appStore.ts'
 import { useFamilyStore } from './stores/familyStore.ts'
-import { useParentSessionValid } from './stores/parentGateStore.ts'
 
 export default function App() {
   const mode = useAppStore((state) => state.mode)
-  const deviceRole = useAppStore((state) => state.deviceRole)
   const isLoading = useFamilyStore((state) => state.isLoading)
   const error = useFamilyStore((state) => state.error)
   const snapshot = useFamilyStore((state) => state.snapshot)
-  const parentSessionValid = useParentSessionValid()
 
   useEffect(() => {
     void bootstrapQuivoApp()
@@ -54,10 +50,7 @@ export default function App() {
     return <BootstrapError message={error ?? 'Family data could not be loaded.'} />
   }
 
-  if (mode === 'parent' && deviceRole !== 'child') {
-    if (!parentSessionValid) {
-      return <ParentGate />
-    }
+  if (mode === 'parent') {
     return <ParentShell />
   }
 
