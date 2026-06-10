@@ -23,15 +23,17 @@ import {
   isTaskComplete,
   isTaskPending,
 } from '../shared/selectors.ts'
-import { book, check, flameFill } from '../../components/icons/icons.tsx'
+import { book, check, flameFill, refresh } from '../../components/icons/icons.tsx'
 
 const Book = book
 const Check = check
 const FlameFill = flameFill
+const Refresh = refresh
 
 export function HomeScreen() {
   const snapshot = useFamilyStore((state) => state.snapshot)
   const submitTaskCompletion = useFamilyStore((state) => state.submitTaskCompletion)
+  const reload = useFamilyStore((state) => state.reload)
   const setActiveTab = useAppStore((state) => state.setActiveTab)
 
   if (!snapshot) return null
@@ -72,14 +74,34 @@ export function HomeScreen() {
           </div>
           <h1 className="t-h1">Good morning, {child.name}</h1>
         </div>
-        <button
-          type="button"
-          onClick={() => setActiveTab('profile')}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-          aria-label="Open profile"
-        >
-          <Avatar size={48} initial={child.initial} avatar={child.avatar} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => void reload()}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 99,
+              border: '1px solid var(--line)',
+              background: 'var(--surface)',
+              display: 'grid',
+              placeItems: 'center',
+              cursor: 'pointer',
+              color: 'var(--ink-3)',
+            }}
+            aria-label="Refresh"
+          >
+            <Refresh size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('profile')}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            aria-label="Open profile"
+          >
+            <Avatar size={48} initial={child.initial} avatar={child.avatar} />
+          </button>
+        </div>
       </div>
 
       <div className="q-body">

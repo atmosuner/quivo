@@ -8,7 +8,11 @@ import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useSessionStore } from '../../stores/sessionStore.ts'
 
-type Phase = 'confirm' | 'completing' | 'error'
+type Phase = 'confirm' | 'completing' | 'done-in-browser' | 'error'
+
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  (window.navigator as Navigator & { standalone?: boolean }).standalone === true
 
 export function ChildJoinScreen() {
   const linkData = detectEmailLinkSignIn()
@@ -42,6 +46,11 @@ export function ChildJoinScreen() {
           createdAt: new Date().toISOString(),
         })
 
+        if (!isStandalone()) {
+          setPhase('done-in-browser')
+          return
+        }
+
         useFamilyStore.getState().setRepository(new FirestoreRepository(linkData.familyId!))
         useSessionStore.getState().clearEffects()
         useParentGateStore.getState().clearSession()
@@ -61,6 +70,11 @@ export function ChildJoinScreen() {
             "No Quivo account found for this email. Ask your parent to send you an invitation.",
           )
           setPhase('error')
+          return
+        }
+
+        if (!isStandalone()) {
+          setPhase('done-in-browser')
           return
         }
 
@@ -126,6 +140,42 @@ export function ChildJoinScreen() {
                 <div className="t-body" role="status" style={{ color: 'var(--ink-2)' }}>
                   {isInvitation ? 'Joining your family…' : 'Signing in…'}
                 </div>
+              )}
+
+              {phase === 'done-in-browser' && (
+                <>
+                  <div
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: '50%',
+                      background: 'var(--success-tint)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      margin: '0 auto 20px',
+                      fontSize: 28,
+                    }}
+                  >
+                    ✅
+                  </div>
+                  <h1 className="t-h1" style={{ marginBottom: 10 }}>You're signed in!</h1>
+                  <p className="t-body" style={{ color: 'var(--ink-2)', marginBottom: 24 }}>
+                    Now open the <strong>Quivo</strong> app from your home screen to start playing.
+                  </p>
+                  <div
+                    style={{
+                      background: 'var(--surface)',
+                      borderRadius: 'var(--r-lg)',
+                      padding: '14px 16px',
+                      boxShadow: 'var(--sh-1)',
+                      textAlign: 'left',
+                      fontSize: 14,
+                      color: 'var(--ink-2)',
+                    }}
+                  >
+                    Tap the Quivo icon on your home screen — you'll be signed in automatically.
+                  </div>
+                </>
               )}
 
               {phase === 'confirm' && (

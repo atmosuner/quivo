@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
+import { isSignInWithEmailLink } from 'firebase/auth'
 import { Button } from '../../components/index.ts'
 import { auth } from '../../lib/firebase/app.ts'
 import {
@@ -23,6 +24,8 @@ export function LandingScreen() {
   const [childEmail, setChildEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pastedLink, setPastedLink] = useState('')
+  const [pasteError, setPasteError] = useState<string | null>(null)
 
   // ── Parent ──────────────────────────────────────────────────────────────────
 
@@ -145,37 +148,103 @@ export function LandingScreen() {
     )
   }
 
+  const handlePasteLink = () => {
+    setPasteError(null)
+    const trimmed = pastedLink.trim()
+    if (!trimmed) {
+      setPasteError('Please paste the link from your email.')
+      return
+    }
+    let url: URL
+    try {
+      url = new URL(trimmed)
+    } catch {
+      setPasteError('That doesn\'t look like a valid link. Copy the full URL from your email.')
+      return
+    }
+    // Must be same origin + same base path as the app
+    const appBase = window.location.origin + (import.meta.env.BASE_URL ?? '/')
+    if (!trimmed.startsWith(appBase.replace(/\/$/, ''))) {
+      setPasteError('This link doesn\'t match the Quivo app. Make sure you copied the full link.')
+      return
+    }
+    if (!isSignInWithEmailLink(auth, trimmed)) {
+      setPasteError('This doesn\'t appear to be a sign-in link. Check your email for the correct link.')
+      return
+    }
+    window.location.replace(url.toString())
+  }
+
   if (step === 'childLinkSent') {
     return (
       <div className="q-app">
         <div className="q-main">
           <div className="q-scroll">
-            <div className="q-body" style={{ paddingTop: 80, paddingBottom: 48, textAlign: 'center' }}>
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: '50%',
-                  background: 'var(--brand-tint)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  margin: '0 auto 20px',
-                  fontSize: 28,
-                }}
-              >
-                ✉️
+            <div className="q-body" style={{ paddingTop: 80, paddingBottom: 48 }}>
+              <div style={{ maxWidth: 340, marginInline: 'auto', textAlign: 'center' }}>
+                <div
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    background: 'var(--brand-tint)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    margin: '0 auto 20px',
+                    fontSize: 28,
+                  }}
+                >
+                  ✉️
+                </div>
+                <h1 className="t-h1" style={{ marginBottom: 8 }}>Check your email</h1>
+                <p className="t-body" style={{ color: 'var(--ink-2)', marginBottom: 28 }}>
+                  We sent a sign-in link to <strong>{childEmail}</strong>. Tap the link in your email to sign in.
+                </p>
+
+                <div
+                  style={{
+                    textAlign: 'left',
+                    background: 'var(--surface)',
+                    borderRadius: 'var(--r-lg)',
+                    padding: '16px',
+                    boxShadow: 'var(--sh-1)',
+                    marginBottom: 20,
+                  }}
+                >
+                  <div className="t-eyebrow" style={{ marginBottom: 8 }}>On iPhone? Paste the link here</div>
+                  <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>
+                    iOS home screen apps can't open email links directly. Copy the link from your email and paste it below.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <input
+                      className="field-input"
+                      type="url"
+                      placeholder="Paste sign-in link…"
+                      value={pastedLink}
+                      onChange={(e) => setPastedLink(e.target.value)}
+                    />
+                    {pasteError && (
+                      <div role="alert" style={errorStyle}>{pasteError}</div>
+                    )}
+                    <Button
+                      variant="tint"
+                      size="md"
+                      block
+                      onClick={handlePasteLink}
+                    >
+                      Continue with pasted link
+                    </Button>
+                  </div>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={() => { setStep('childEmail'); setError(null) }}
+                >
+                  Use a different email
+                </Button>
               </div>
-              <h1 className="t-h1" style={{ marginBottom: 8 }}>Check your email</h1>
-              <p className="t-body" style={{ color: 'var(--ink-2)', maxWidth: 280, marginInline: 'auto', marginBottom: 32 }}>
-                We sent a sign-in link to <strong>{childEmail}</strong>. Open it on this device to continue.
-              </p>
-              <Button
-                variant="ghost"
-                size="md"
-                onClick={() => { setStep('childEmail'); setError(null) }}
-              >
-                Use a different email
-              </Button>
             </div>
           </div>
         </div>

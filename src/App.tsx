@@ -20,6 +20,17 @@ export default function App() {
     void bootstrapQuivoApp()
   }, [])
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const { snapshot: current, isLoading: loading } = useFamilyStore.getState()
+        if (current && !loading) void useFamilyStore.getState().reload()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
   if (isLoading) {
     return (
       <div className="q-app">

@@ -234,6 +234,10 @@ export const moon: IconComponent = (p) => (
   <Icon {...p} d="M19 13.5A7.5 7.5 0 0 1 9.5 4 7.5 7.5 0 1 0 19 13.5z" />
 )
 
+export const refresh: IconComponent = (p) => (
+  <Icon {...p} sw={2} d="M4 4v5h5M20 20v-5h-5M4.5 15A8 8 0 1 0 5.6 7.4" />
+)
+
 export const pencilSquare: IconComponent = (p) => (
   <Icon {...p}>
     <path d="M4.5 7.5a3 3 0 0 1 3-3H12M19.5 12v4.5a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-4M16 4l3.5 3.5L12 15l-3.7.7L9 12z" />
