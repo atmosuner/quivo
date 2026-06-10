@@ -43,7 +43,7 @@ export function acquireRecaptcha(nextHandlers?: RecaptchaHandlers): Promise<Reca
     'expired-callback': () => {
       solved = false
       handlers?.onExpired?.()
-      resetRecaptcha()
+      window.setTimeout(() => resetRecaptcha(), 300)
     },
   })
 
@@ -69,4 +69,9 @@ export function resetRecaptcha(): void {
   verifier = null
   renderTask = null
   solved = false
+}
+
+/** Let reCAPTCHA finish its callback before tearing down the widget container. */
+export function teardownRecaptchaSoon(delayMs = 400): void {
+  window.setTimeout(() => resetRecaptcha(), delayMs)
 }

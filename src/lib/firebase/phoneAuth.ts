@@ -57,7 +57,7 @@ export function phoneAuthErrorMessage(error: unknown, projectId?: string): strin
     case 'auth/captcha-check-failed':
       return 'Verification check failed. Complete the checkbox and try again.'
     case 'auth/too-many-requests':
-      return 'Too many attempts. Wait a few minutes, then try again.'
+      return 'Too many SMS attempts from this device. Wait about 15 minutes before trying again.'
     case 'auth/operation-not-allowed':
       return operationNotAllowedMessage(serverMessage)
     case 'auth/quota-exceeded':

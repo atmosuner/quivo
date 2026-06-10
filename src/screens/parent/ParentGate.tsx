@@ -14,12 +14,14 @@ import {
   acquireRecaptcha,
   RECAPTCHA_CONTAINER_ID,
   resetRecaptcha,
+  teardownRecaptchaSoon,
 } from '../../lib/firebase/recaptcha.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 
 const Shield = shield
 const OTP_LENGTH = 6
+const RATE_LIMIT_COOLDOWN_MS = 15 * 60 * 1000
 
 type GateStep = 'phone' | 'otp'
 
@@ -80,6 +82,13 @@ function PinKeypad({
   )
 }
 
+function formatCooldown(remainingMs: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
 export function ParentGate() {
   const unlock = useParentGateStore((state) => state.unlock)
   const lock = useParentGateStore((state) => state.lock)
@@ -94,9 +103,11 @@ export function ParentGate() {
   const [smsPending, setSmsPending] = useState(false)
   const [recaptchaReady, setRecaptchaReady] = useState(false)
   const [recaptchaSolved, setRecaptchaSolved] = useState(false)
+  const [rateLimitedUntil, setRateLimitedUntil] = useState<number | null>(null)
+  const [cooldownMs, setCooldownMs] = useState(0)
 
   const confirmationRef = useRef<ConfirmationResult | null>(null)
-  const autoSendStartedRef = useRef(false)
+  const sendingRef = useRef(false)
 
   const initRecaptcha = () => {
     resetRecaptcha()
@@ -107,6 +118,12 @@ export function ParentGate() {
       onExpired: () => setRecaptchaSolved(false),
     })
   }
+
+  useEffect(() => {
+    if (linkedPhone) {
+      setPhoneInput(linkedPhone)
+    }
+  }, [linkedPhone])
 
   useEffect(() => {
     let cancelled = false
@@ -123,16 +140,45 @@ export function ParentGate() {
 
     return () => {
       cancelled = true
+      teardownRecaptchaSoon(0)
     }
   }, [])
 
+  useEffect(() => {
+    if (rateLimitedUntil == null) {
+      setCooldownMs(0)
+      return
+    }
+
+    const tick = () => {
+      const remaining = rateLimitedUntil - Date.now()
+      if (remaining <= 0) {
+        setRateLimitedUntil(null)
+        setCooldownMs(0)
+        void initRecaptcha()
+          .then(() => setRecaptchaReady(true))
+          .catch(() => setMessage('Could not reload verification. Refresh and try again.'))
+        return
+      }
+      setCooldownMs(remaining)
+    }
+
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [rateLimitedUntil])
+
   const sendOtp = async (rawPhone: string) => {
+    if (sendingRef.current || busy) return
+    if (rateLimitedUntil != null && Date.now() < rateLimitedUntil) return
+
     const phone = normalizePhoneNumber(rawPhone)
     if (!phone) {
       setMessage('Use international format with country code (example: +1 555 000 0000).')
       return
     }
 
+    sendingRef.current = true
     setBusy(true)
     setSmsPending(true)
     setMessage(null)
@@ -140,31 +186,31 @@ export function ParentGate() {
       const appVerifier = await acquireRecaptcha()
       confirmationRef.current = await signInWithPhoneNumber(auth, phone, appVerifier)
       setPhoneInput(phone)
-      resetRecaptcha()
+      setStep('otp')
+      teardownRecaptchaSoon()
       setRecaptchaReady(false)
       setRecaptchaSolved(false)
-      setStep('otp')
     } catch (error) {
       if (import.meta.env.DEV) console.error('Phone auth send failed:', error)
+      const errCode = (error as { code?: string })?.code
       setMessage(phoneAuthErrorMessage(error, firebaseProjectId))
-      try {
-        await initRecaptcha()
-        setRecaptchaReady(true)
-      } catch {
-        setMessage('Could not reload verification. Refresh and try again.')
+
+      if (errCode === 'auth/too-many-requests') {
+        setRateLimitedUntil(Date.now() + RATE_LIMIT_COOLDOWN_MS)
+      } else {
+        try {
+          await initRecaptcha()
+          setRecaptchaReady(true)
+        } catch {
+          setMessage('Could not reload verification. Refresh the page and try again.')
+        }
       }
     } finally {
+      sendingRef.current = false
       setBusy(false)
       setSmsPending(false)
     }
   }
-
-  useEffect(() => {
-    if (!linkedPhone || !recaptchaReady || autoSendStartedRef.current) return
-    autoSendStartedRef.current = true
-    setPhoneInput(linkedPhone)
-    void sendOtp(linkedPhone)
-  }, [linkedPhone, recaptchaReady])
 
   const verifyOtp = async (code: string) => {
     if (busy) return
@@ -232,7 +278,8 @@ export function ParentGate() {
 
   const displayPhone = phoneInput
   const awaitingSms = step === 'otp' && smsPending
-  const phoneReady = recaptchaReady && recaptchaSolved && !busy
+  const rateLimited = rateLimitedUntil != null && cooldownMs > 0
+  const phoneReady = recaptchaReady && recaptchaSolved && !busy && !rateLimited
 
   return (
     <div className="q-app">
@@ -275,7 +322,7 @@ export function ParentGate() {
                   placeholder="+1 555 000 0000"
                   value={phoneInput}
                   onChange={(e) => setPhoneInput(e.target.value)}
-                  disabled={busy}
+                  disabled={busy || rateLimited}
                   autoComplete="tel"
                 />
               )}
@@ -286,12 +333,17 @@ export function ParentGate() {
 
               {step === 'phone' && (
                 <>
-                  {!recaptchaSolved && recaptchaReady && (
+                  {!recaptchaSolved && recaptchaReady && !rateLimited && (
                     <p className="t-caption" style={{ marginTop: 8 }}>
                       Complete the checkbox above before sending.
                     </p>
                   )}
-                  {message && <div className="pin-message">{message}</div>}
+                  {rateLimited && (
+                    <p className="pin-message" role="status">
+                      Too many attempts. Try again in {formatCooldown(cooldownMs)}.
+                    </p>
+                  )}
+                  {message && !rateLimited && <div className="pin-message">{message}</div>}
                   <Button
                     variant="primary"
                     size="md"
@@ -299,13 +351,15 @@ export function ParentGate() {
                     disabled={!phoneReady || !phoneInput.trim()}
                     onClick={() => void sendOtp(phoneInput)}
                   >
-                    {busy
-                      ? 'Sending…'
-                      : !recaptchaReady
-                        ? 'Loading verification…'
-                        : !recaptchaSolved
-                          ? 'Complete verification first'
-                          : 'Send code'}
+                    {rateLimited
+                      ? `Wait ${formatCooldown(cooldownMs)}`
+                      : busy
+                        ? 'Sending…'
+                        : !recaptchaReady
+                          ? 'Loading verification…'
+                          : !recaptchaSolved
+                            ? 'Complete verification first'
+                            : 'Send code'}
                   </Button>
                 </>
               )}
@@ -334,7 +388,7 @@ export function ParentGate() {
                   size="md"
                   block
                   style={{ marginTop: 12, maxWidth: 320, marginInline: 'auto' }}
-                  disabled={busy}
+                  disabled={busy || rateLimited}
                   onClick={() => {
                     setStep('phone')
                     setOtp('')
@@ -344,7 +398,7 @@ export function ParentGate() {
                       .catch(() => setMessage('Could not reload verification. Refresh and try again.'))
                   }}
                 >
-                  Resend code
+                  {rateLimited ? `Resend in ${formatCooldown(cooldownMs)}` : 'Resend code'}
                 </Button>
               </>
             )}
