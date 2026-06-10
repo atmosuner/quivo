@@ -92,7 +92,11 @@ export function ParentSetupScreen() {
 
       useAppStore.getState().setOnboardingScreen('inviteSent')
     } catch (err) {
-      const msg = (err as { message?: string })?.message ?? 'Something went wrong. Please try again.'
+      const code = (err as { code?: string })?.code
+      const msg =
+        code === 'permission-denied'
+          ? 'Firestore security rules are blocking writes. Set up rules in Firebase Console → Firestore → Rules (see docs).'
+          : (err as { message?: string })?.message ?? 'Something went wrong. Please try again.'
       setError(msg)
       setBusy(false)
     }

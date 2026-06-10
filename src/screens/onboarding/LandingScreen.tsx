@@ -27,29 +27,38 @@ export function LandingScreen() {
     setError(null)
     setBusy(true)
     localStorage.setItem(PENDING_SETUP_ROLE_KEY, 'parent')
-    try {
-      await signInWithGoogle()
-      // Check if parent already has a family
-      const user = auth.currentUser
-      if (user) {
-        const profile = await getUserProfile(user.uid)
-        if (profile) {
-          useFamilyStore.getState().setRepository(new FirestoreRepository(profile.familyId))
-          useSessionStore.getState().clearEffects()
-          useParentGateStore.getState().clearSession()
-          useAppStore.getState().resetNavigation()
-          await useFamilyStore.getState().bootstrap()
-          localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
-          return
-        }
+
+    // Step 1: Google sign-in
+    let user = auth.currentUser
+    if (!user?.providerData.some((p) => p.providerId === 'google.com')) {
+      try {
+        user = await signInWithGoogle()
+      } catch (err) {
+        if (err instanceof GoogleRedirectPending) return
+        setError(googleAuthErrorMessage(err))
+        setBusy(false)
+        return
       }
-      localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
-      useAppStore.getState().setOnboardingScreen('parentSetup')
-    } catch (err) {
-      if (err instanceof GoogleRedirectPending) return
-      setError(googleAuthErrorMessage(err))
-      setBusy(false)
     }
+
+    // Step 2: Check for existing profile + load family if it exists
+    try {
+      const profile = await getUserProfile(user.uid)
+      if (profile) {
+        useFamilyStore.getState().setRepository(new FirestoreRepository(profile.familyId))
+        useSessionStore.getState().clearEffects()
+        useParentGateStore.getState().clearSession()
+        useAppStore.getState().resetNavigation()
+        await useFamilyStore.getState().bootstrap()
+        localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
+        return
+      }
+    } catch {
+      // profile load error — proceed to setup as new parent
+    }
+
+    localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
+    useAppStore.getState().setOnboardingScreen('parentSetup')
   }
 
   const handleChild = async () => {
@@ -57,33 +66,43 @@ export function LandingScreen() {
     setError(null)
     setBusy(true)
     localStorage.setItem(PENDING_SETUP_ROLE_KEY, 'child')
-    try {
-      await signInWithGoogle()
-      const user = auth.currentUser
-      if (user) {
-        const profile = await getUserProfile(user.uid)
-        if (profile) {
-          useFamilyStore.getState().setRepository(new FirestoreRepository(profile.familyId))
-          useSessionStore.getState().clearEffects()
-          useParentGateStore.getState().clearSession()
-          useAppStore.getState().resetNavigation()
-          await useFamilyStore.getState().bootstrap()
-          const snapshot = useFamilyStore.getState().snapshot
-          if (snapshot && profile.childId && snapshot.family.settings.activeChildId !== profile.childId) {
-            const exists = snapshot.family.children.some((c) => c.id === profile.childId)
-            if (exists) await useFamilyStore.getState().switchActiveChild(profile.childId)
-          }
-          localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
-          return
-        }
+
+    // Step 1: Google sign-in
+    let user = auth.currentUser
+    if (!user?.providerData.some((p) => p.providerId === 'google.com')) {
+      try {
+        user = await signInWithGoogle()
+      } catch (err) {
+        if (err instanceof GoogleRedirectPending) return
+        setError(googleAuthErrorMessage(err))
+        setBusy(false)
+        return
       }
-      localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
-      useAppStore.getState().setOnboardingScreen('childWaiting')
-    } catch (err) {
-      if (err instanceof GoogleRedirectPending) return
-      setError(googleAuthErrorMessage(err))
-      setBusy(false)
     }
+
+    // Step 2: Check for existing profile
+    try {
+      const profile = await getUserProfile(user.uid)
+      if (profile) {
+        useFamilyStore.getState().setRepository(new FirestoreRepository(profile.familyId))
+        useSessionStore.getState().clearEffects()
+        useParentGateStore.getState().clearSession()
+        useAppStore.getState().resetNavigation()
+        await useFamilyStore.getState().bootstrap()
+        const snapshot = useFamilyStore.getState().snapshot
+        if (snapshot && profile.childId && snapshot.family.settings.activeChildId !== profile.childId) {
+          const exists = snapshot.family.children.some((c) => c.id === profile.childId)
+          if (exists) await useFamilyStore.getState().switchActiveChild(profile.childId)
+        }
+        localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
+        return
+      }
+    } catch {
+      // profile load error — fall through to waiting screen
+    }
+
+    localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
+    useAppStore.getState().setOnboardingScreen('childWaiting')
   }
 
   const handleDemo = async () => {
