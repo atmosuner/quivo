@@ -641,8 +641,6 @@ const family: Family = {
   id: SEED_FAMILY_ID,
   name: 'Family',
   settings: {
-    parentPinHash: null,
-    parentPinSalt: null,
     requireApprovalDefault: true,
     activeChildId: CHILD_MIA_ID,
   },

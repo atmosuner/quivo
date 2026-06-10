@@ -27,10 +27,6 @@ export type ApprovalStatus = 'pending' | 'approved' | 'declined'
 // ─── Family settings ────────────────────────────────────────────────────────
 
 export interface FamilySettings {
-  /** SHA-256 hash of PIN + salt. Null until parent sets a PIN. */
-  parentPinHash: string | null
-  /** Random salt used with the parent PIN hash. */
-  parentPinSalt: string | null
   /** Default for new tasks created by the parent. */
   requireApprovalDefault: boolean
   /** Active child profile shown in child mode. */

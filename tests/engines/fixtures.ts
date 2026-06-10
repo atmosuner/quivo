@@ -97,8 +97,6 @@ export function makeAchievementProgress(
 
 export function makeFamily(overrides: Partial<Family> = {}): Family {
   const settings: FamilySettings = {
-    parentPinHash: null,
-    parentPinSalt: null,
     requireApprovalDefault: true,
     activeChildId: CHILD_ID,
     ...overrides.settings,

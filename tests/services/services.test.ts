@@ -4,7 +4,6 @@ import { approveApproval, declineApproval } from '../../src/services/approvalSer
 import { runDailyResetIfNeeded } from '../../src/services/dailyResetService.ts'
 import { submitPageLog } from '../../src/services/readingService.ts'
 import { requestRewardRedemption } from '../../src/services/rewardService.ts'
-import { setParentPin } from '../../src/services/familyService.ts'
 import { addTask, submitTaskCompletion } from '../../src/services/taskService.ts'
 import { MemoryRepository } from './memoryRepository.ts'
 
@@ -165,14 +164,6 @@ describe('application services', () => {
 
     expect(approved.snapshot.family.readingLogs).toHaveLength(1)
     expect(approved.snapshot.family.books[0].pagesRead).toBe(35)
-  })
-
-  it('stores a hashed parent PIN in family settings', async () => {
-    const repo = makeRepo()
-    const result = await setParentPin('2468', repo)
-
-    expect(result.snapshot.family.settings.parentPinHash).toHaveLength(64)
-    expect(result.snapshot.family.settings.parentPinSalt).toBeTruthy()
   })
 
   it('creates and persists a new open task', async () => {

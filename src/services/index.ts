@@ -11,7 +11,6 @@ export {
   getChildById,
   loadFamily,
   resetFamily,
-  setParentPin,
   switchActiveChild,
 } from './familyService.ts'
 export { runDailyResetIfNeeded } from './dailyResetService.ts'

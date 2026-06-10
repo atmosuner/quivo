@@ -2,11 +2,6 @@ import type { Child } from '../types/domain.ts'
 import type { AppSnapshot } from '../types/storage.ts'
 import type { DataRepository } from '../lib/storage/repository.ts'
 import { localStorageRepository } from '../lib/storage/localStorage.ts'
-import {
-  generateParentPinSalt,
-  hashParentPin,
-  isValidPin,
-} from '../lib/security/parentPin.ts'
 import { buildSnapshot } from './shared.ts'
 import type { ServiceResult } from './types.ts'
 
@@ -63,28 +58,3 @@ export function getChildById(snapshot: AppSnapshot, childId: string): Child {
   return child
 }
 
-export async function setParentPin(
-  pin: string,
-  repo: DataRepository = localStorageRepository,
-): Promise<ServiceResult> {
-  if (!isValidPin(pin)) {
-    throw new Error('PIN must be exactly 4 digits')
-  }
-
-  const snapshot = await repo.load()
-  const salt = generateParentPinSalt()
-  const parentPinHash = await hashParentPin(pin, salt)
-
-  const family = {
-    ...snapshot.family,
-    settings: {
-      ...snapshot.family.settings,
-      parentPinHash,
-      parentPinSalt: salt,
-    },
-  }
-
-  const updated = buildSnapshot(family, snapshot.meta)
-  await repo.save(updated)
-  return { snapshot: updated, effects: [] }
-}

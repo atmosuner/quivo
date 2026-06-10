@@ -3,7 +3,6 @@ import { IconTile, SubHead } from '../../../components/index.ts'
 import { chevR } from '../../../components/icons/icons.tsx'
 import { useFamilyStore } from '../../../stores/familyStore.ts'
 import { useAppStore } from '../../../stores/appStore.ts'
-import { useParentGateStore } from '../../../stores/parentGateStore.ts'
 import { InstallHint } from '../../shared/InstallHint.tsx'
 import { getActiveChild } from '../../shared/selectors.ts'
 
@@ -37,19 +36,11 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
 
   const child = getActiveChild(snapshot.family)
   const requireApproval = snapshot.family.settings.requireApprovalDefault
-  const hasPin = Boolean(
-    snapshot.family.settings.parentPinHash && snapshot.family.settings.parentPinSalt,
-  )
 
   const openParent = () => {
     const app = useAppStore.getState()
     app.setParentScreen('dash')
     app.setMode('parent')
-  }
-
-  const changePin = () => {
-    useParentGateStore.getState().startPinChange()
-    useAppStore.getState().setMode('parent')
   }
 
   const handleExport = () => {
@@ -97,16 +88,6 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
           tone: '--brand',
           action: openParent,
         },
-        ...(hasPin
-          ? [
-              {
-                icon: 'lock',
-                label: 'Change parent PIN',
-                tone: '--ink-2',
-                action: changePin,
-              } satisfies SettingsRow,
-            ]
-          : []),
         {
           icon: 'check',
           label: 'Approval required',

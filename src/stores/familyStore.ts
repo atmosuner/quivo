@@ -6,7 +6,6 @@ import { localStorageRepository } from '../lib/storage/localStorage.ts'
 import {
   loadFamily,
   resetFamily as resetFamilyService,
-  setParentPin as setParentPinService,
   switchActiveChild,
 } from '../services/familyService.ts'
 import { runDailyResetIfNeeded } from '../services/dailyResetService.ts'
@@ -42,7 +41,6 @@ interface FamilyState {
   requestRewardRedemption: (childId: string, rewardId: string) => Promise<void>
   approveApproval: (approvalId: string) => Promise<void>
   declineApproval: (approvalId: string) => Promise<void>
-  setParentPin: (pin: string) => Promise<void>
   createTask: (input: CreateTaskInput) => Promise<void>
 }
 
@@ -171,15 +169,6 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     try {
       const result = await declineApproval(approvalId, get().repo)
       enqueueServiceEffects(result.effects)
-      set({ snapshot: result.snapshot, error: null })
-    } catch (error) {
-      set({ error: toUserErrorMessage(error) })
-    }
-  },
-
-  setParentPin: async (pin) => {
-    try {
-      const result = await setParentPinService(pin, get().repo)
       set({ snapshot: result.snapshot, error: null })
     } catch (error) {
       set({ error: toUserErrorMessage(error) })
