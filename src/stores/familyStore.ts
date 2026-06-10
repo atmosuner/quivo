@@ -4,6 +4,10 @@ import type { GrantEffect } from '../types/gamification.ts'
 import type { DataRepository } from '../lib/storage/repository.ts'
 import { localStorageRepository } from '../lib/storage/localStorage.ts'
 import {
+  generateParentPinSalt,
+  hashParentPin,
+} from '../lib/security/parentPin.ts'
+import {
   loadFamily,
   resetFamily as resetFamilyService,
   switchActiveChild,
@@ -47,6 +51,7 @@ interface FamilyState {
   approveApproval: (approvalId: string) => Promise<void>
   declineApproval: (approvalId: string) => Promise<void>
   createTask: (input: CreateTaskInput) => Promise<void>
+  setChildPin: (childId: string, pin: string | null) => Promise<void>
 }
 
 function enqueueServiceEffects(effects: GrantEffect[]): void {
@@ -213,6 +218,32 @@ export const useFamilyStore = create<FamilyState>((set, get) => ({
     try {
       const result = await addTask(input, get().repo)
       set({ snapshot: result.snapshot, error: null })
+    } catch (error) {
+      set({ error: toUserErrorMessage(error) })
+    }
+  },
+
+  setChildPin: async (childId, pin) => {
+    const { snapshot, repo } = get()
+    if (!snapshot) return
+    try {
+      let pinHash: string | undefined
+      let pinSalt: string | undefined
+      if (pin) {
+        pinSalt = generateParentPinSalt()
+        pinHash = await hashParentPin(pin, pinSalt)
+      }
+      const updatedFamily = {
+        ...snapshot.family,
+        children: snapshot.family.children.map((c) =>
+          c.id === childId
+            ? { ...c, pinHash, pinSalt }
+            : c,
+        ),
+      }
+      const updatedSnapshot = { ...snapshot, family: updatedFamily }
+      await repo.save(updatedSnapshot)
+      set({ snapshot: updatedSnapshot, error: null })
     } catch (error) {
       set({ error: toUserErrorMessage(error) })
     }

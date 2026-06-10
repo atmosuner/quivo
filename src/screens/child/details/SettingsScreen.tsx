@@ -43,6 +43,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const openParent = () => {
     const app = useAppStore.getState()
     app.setParentScreen('dash')
+    app.setChildUnlocked(false)
     app.setMode('parent')
   }
 

@@ -69,6 +69,10 @@ export interface Child {
   tasksCompletedLifetime: number
   booksReadLifetime: number
 
+  // Optional child PIN (stored as salted SHA-256 hash)
+  pinHash?: string
+  pinSalt?: string
+
   /**
    * XP earned per day for the profile week chart (index 0 = weeklyXpStartDate).
    * Avoids a full XP event log in MVP.

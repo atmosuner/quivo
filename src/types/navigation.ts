@@ -8,9 +8,6 @@ export type AppMode = 'onboarding' | 'child' | 'parent'
 export type OnboardingScreen =
   | 'landing'
   | 'parentSetup'
-  | 'inviteSent'
-  | 'childJoin'
-  | 'childWaiting'
 
 /** Child stack screens pushed over tab content. */
 export type ChildStackScreen =

@@ -1,7 +1,6 @@
 import { onAuthStateChanged, getRedirectResult } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from '../lib/firebase/app.ts'
-import { detectEmailLinkSignIn } from '../lib/firebase/emailInvite.ts'
 import { getUserProfile } from '../lib/firebase/userProfile.ts'
 import type { UserProfile } from '../lib/firebase/userProfile.ts'
 import { FirestoreRepository } from '../lib/storage/firestoreRepository.ts'
@@ -10,7 +9,6 @@ import { useAppStore } from './appStore.ts'
 import { useFamilyStore } from './familyStore.ts'
 import { useParentGateStore } from './parentGateStore.ts'
 import { useSessionStore } from './sessionStore.ts'
-import type { OnboardingScreen } from '../types/navigation.ts'
 
 export const PENDING_SETUP_ROLE_KEY = 'quivo.pendingSetupRole'
 
@@ -29,31 +27,23 @@ async function getAuthUser(): Promise<User | null> {
   })
 }
 
-function goToOnboarding(screen: OnboardingScreen): void {
+function goToOnboarding(): void {
   useFamilyStore.getState().markReady()
-  useAppStore.getState().setOnboardingScreen(screen)
+  useAppStore.getState().setOnboardingScreen('landing')
   useAppStore.getState().setMode('onboarding')
 }
 
-async function loadUserFamily(profile: UserProfile): Promise<void> {
+async function loadParentFamily(profile: UserProfile): Promise<void> {
   useFamilyStore.getState().setRepository(new FirestoreRepository(profile.familyId))
   useSessionStore.getState().clearEffects()
   useParentGateStore.getState().clearSession()
   useAppStore.getState().resetNavigation()
+  // resetNavigation sets mode='child' and childUnlocked=false — child selector will show
   await useFamilyStore.getState().bootstrap()
-
-  if (profile.role === 'child' && profile.childId) {
-    const snapshot = useFamilyStore.getState().snapshot
-    if (snapshot && snapshot.family.settings.activeChildId !== profile.childId) {
-      const exists = snapshot.family.children.some((c) => c.id === profile.childId)
-      if (exists) await useFamilyStore.getState().switchActiveChild(profile.childId)
-    }
-  }
 }
 
 export async function bootstrapQuivoApp(repo?: DataRepository): Promise<void> {
   if (repo) {
-    // Test mode: use the provided in-memory repository directly.
     useFamilyStore.getState().setRepository(repo)
     useSessionStore.getState().clearEffects()
     useParentGateStore.getState().clearSession()
@@ -62,16 +52,10 @@ export async function bootstrapQuivoApp(repo?: DataRepository): Promise<void> {
     return
   }
 
-  const linkData = detectEmailLinkSignIn()
-  if (linkData) {
-    goToOnboarding('childJoin')
-    return
-  }
-
   const user = await getAuthUser()
 
   if (!user || user.isAnonymous) {
-    goToOnboarding('landing')
+    goToOnboarding()
     return
   }
 
@@ -82,17 +66,17 @@ export async function bootstrapQuivoApp(repo?: DataRepository): Promise<void> {
       const pendingRole = localStorage.getItem(PENDING_SETUP_ROLE_KEY)
       localStorage.removeItem(PENDING_SETUP_ROLE_KEY)
       if (pendingRole === 'parent') {
-        goToOnboarding('parentSetup')
-      } else if (pendingRole === 'child') {
-        goToOnboarding('childWaiting')
+        useFamilyStore.getState().markReady()
+        useAppStore.getState().setOnboardingScreen('parentSetup')
+        useAppStore.getState().setMode('onboarding')
       } else {
-        goToOnboarding('landing')
+        goToOnboarding()
       }
       return
     }
 
-    await loadUserFamily(profile)
+    await loadParentFamily(profile)
   } catch {
-    goToOnboarding('landing')
+    goToOnboarding()
   }
 }

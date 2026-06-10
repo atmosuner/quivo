@@ -1,15 +1,18 @@
+import { useState } from 'react'
 import {
   Avatar,
   Bar,
+  Button,
   Coin,
   IconTile,
   Mini,
   WeekChart,
 } from '../../components/index.ts'
-import { bell, chevR, flameFill, shield, star } from '../../components/icons/icons.tsx'
+import { bell, chevR, flameFill, lock, shield, star } from '../../components/icons/icons.tsx'
 import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
+import { isValidPin } from '../../lib/security/parentPin.ts'
 import { getReferenceDate } from '../shared/selectors.ts'
 import {
   countPendingApprovals,
@@ -22,14 +25,103 @@ import {
 const Bell = bell
 const ChevR = chevR
 const FlameFill = flameFill
+const LockIcon = lock
 const Shield = shield
 const Star = star
+
+function SetPinModal({ childId, childName, hasPin, onClose }: {
+  childId: string
+  childName: string
+  hasPin: boolean
+  onClose: () => void
+}) {
+  const setChildPin = useFamilyStore((state) => state.setChildPin)
+  const [pin, setPin] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    if (!isValidPin(pin)) { setError('PIN must be exactly 4 digits.'); return }
+    if (pin !== confirm) { setError("PINs don't match."); return }
+    setBusy(true)
+    await setChildPin(childId, pin)
+    onClose()
+  }
+
+  const handleRemove = async () => {
+    setBusy(true)
+    await setChildPin(childId, null)
+    onClose()
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(0,0,0,0.45)',
+        display: 'flex', alignItems: 'flex-end',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%',
+          background: 'var(--bg)',
+          borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
+          padding: '24px 20px 40px',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="t-h3" style={{ marginBottom: 4 }}>
+          {hasPin ? `Change PIN for ${childName}` : `Set PIN for ${childName}`}
+        </div>
+        <p className="t-body" style={{ color: 'var(--ink-2)', marginBottom: 20, fontSize: 14 }}>
+          Children enter this PIN to access their profile.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input
+            className="field-input"
+            type="number"
+            inputMode="numeric"
+            placeholder="New 4-digit PIN"
+            value={pin}
+            maxLength={4}
+            onChange={(e) => { setPin(e.target.value.slice(0, 4)); setError(null) }}
+            autoFocus
+          />
+          <input
+            className="field-input"
+            type="number"
+            inputMode="numeric"
+            placeholder="Confirm PIN"
+            value={confirm}
+            maxLength={4}
+            onChange={(e) => { setConfirm(e.target.value.slice(0, 4)); setError(null) }}
+          />
+          {error && (
+            <div style={{ fontSize: 13, color: 'oklch(0.55 0.18 15)', fontWeight: 600 }}>{error}</div>
+          )}
+          <Button variant="primary" size="md" block disabled={busy} onClick={() => void handleSave()}>
+            {busy ? 'Saving…' : 'Save PIN'}
+          </Button>
+          {hasPin && (
+            <Button variant="ghost" size="md" block disabled={busy} onClick={() => void handleRemove()}>
+              Remove PIN
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function ParentDashboard() {
   const snapshot = useFamilyStore((state) => state.snapshot)
   const setParentScreen = useAppStore((state) => state.setParentScreen)
   const setMode = useAppStore((state) => state.setMode)
   const lock = useParentGateStore((state) => state.lock)
+  const [pinModalChildId, setPinModalChildId] = useState<string | null>(null)
 
   if (!snapshot) return null
 
@@ -43,9 +135,14 @@ export function ParentDashboard() {
     lock()
     setMode('child')
     setParentScreen('dash')
+    // Return to child selector so children re-enter their PIN
+    useAppStore.getState().setChildUnlocked(false)
   }
 
+  const pinChild = pinModalChildId ? family.children.find((c) => c.id === pinModalChildId) : null
+
   return (
+    <>
     <div className="q-scroll" style={{ paddingBottom: 28 }}>
       <div
         style={{
@@ -208,6 +305,28 @@ export function ParentDashboard() {
                     }}
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setPinModalChildId(child.id) }}
+                  style={{
+                    marginTop: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: 'none',
+                    border: '1px solid var(--line)',
+                    borderRadius: 99,
+                    padding: '5px 12px',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--ink-3)',
+                    fontFamily: 'var(--font)',
+                  }}
+                >
+                  <LockIcon size={12} stroke="var(--ink-4)" />
+                  {child.pinHash ? 'Change PIN' : 'Set PIN'}
+                </button>
               </div>
             )
           })}
@@ -320,5 +439,15 @@ export function ParentDashboard() {
         </div>
       </div>
     </div>
+
+    {pinChild && (
+      <SetPinModal
+        childId={pinChild.id}
+        childName={pinChild.name}
+        hasPin={!!pinChild.pinHash}
+        onClose={() => setPinModalChildId(null)}
+      />
+    )}
+    </>
   )
 }

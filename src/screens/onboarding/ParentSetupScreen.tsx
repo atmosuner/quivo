@@ -4,7 +4,6 @@ import { onAuthStateChanged } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { Avatar, Button } from '../../components/index.ts'
 import { auth } from '../../lib/firebase/app.ts'
-import { sendChildInvitation } from '../../lib/firebase/emailInvite.ts'
 import { saveUserProfile } from '../../lib/firebase/userProfile.ts'
 import { FirestoreRepository } from '../../lib/storage/firestoreRepository.ts'
 import { createNewFamilySnapshot } from '../../data/newFamily.ts'
@@ -13,8 +12,6 @@ import { useAppStore } from '../../stores/appStore.ts'
 import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useSessionStore } from '../../stores/sessionStore.ts'
-
-type Step = 'family' | 'invite'
 
 const AVATAR_PRESETS: ChildAvatar[] = [
   { hue1: 282, hue2: 250 },
@@ -27,11 +24,9 @@ const AVATAR_PRESETS: ChildAvatar[] = [
 
 export function ParentSetupScreen() {
   const [user, setUser] = useState<User | null>(auth.currentUser)
-  const [step, setStep] = useState<Step>('family')
   const [familyName, setFamilyName] = useState('')
   const [childName, setChildName] = useState('')
   const [childAvatar, setChildAvatar] = useState<ChildAvatar>(AVATAR_PRESETS[0])
-  const [childEmail, setChildEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,22 +35,13 @@ export function ParentSetupScreen() {
     return unsub
   }, [])
 
-  const handleCreateFamily = () => {
+  const handleCreate = async () => {
     if (!familyName.trim()) {
       setError('Please enter your family name.')
       return
     }
     if (!childName.trim()) {
       setError("Please enter your child's name.")
-      return
-    }
-    setError(null)
-    setStep('invite')
-  }
-
-  const handleSendInvite = async () => {
-    if (!childEmail.trim()) {
-      setError("Please enter your child's email address.")
       return
     }
     if (!user) {
@@ -83,19 +69,17 @@ export function ParentSetupScreen() {
         createdAt: new Date().toISOString(),
       })
 
-      await sendChildInvitation(childEmail.trim(), user.uid, childId)
-
       useFamilyStore.getState().setRepository(repo)
       useSessionStore.getState().clearEffects()
       useParentGateStore.getState().clearSession()
+      useAppStore.getState().resetNavigation()
       await useFamilyStore.getState().reload()
-
-      useAppStore.getState().setOnboardingScreen('inviteSent')
+      // resetNavigation already set mode='child', childUnlocked=false — child selector shows
     } catch (err) {
       const code = (err as { code?: string })?.code
       const msg =
         code === 'permission-denied'
-          ? 'Firestore security rules are blocking writes. Set up rules in Firebase Console → Firestore → Rules (see docs).'
+          ? 'Firestore security rules are blocking writes. Deploy the firestore.rules file from the project root.'
           : (err as { message?: string })?.message ?? 'Something went wrong. Please try again.'
       setError(msg)
       setBusy(false)
@@ -108,195 +92,76 @@ export function ParentSetupScreen() {
         <div className="q-scroll">
           <div className="q-body" style={{ paddingTop: 48, paddingBottom: 48 }}>
             <div style={{ maxWidth: 360, marginInline: 'auto' }}>
-              {step === 'family' ? (
-                <FamilyStep
-                  familyName={familyName}
-                  childName={childName}
-                  childAvatar={childAvatar}
-                  error={error}
-                  onFamilyNameChange={setFamilyName}
-                  onChildNameChange={setChildName}
-                  onAvatarChange={setChildAvatar}
-                  onNext={handleCreateFamily}
-                />
-              ) : (
-                <InviteStep
-                  childName={childName}
-                  childAvatar={childAvatar}
-                  childEmail={childEmail}
-                  busy={busy}
-                  error={error}
-                  onEmailChange={setChildEmail}
-                  onBack={() => { setStep('family'); setError(null) }}
-                  onSend={() => void handleSendInvite()}
-                />
-              )}
+              <div style={{ marginBottom: 32 }}>
+                <h1 className="t-h1" style={{ marginBottom: 8 }}>Set up your family</h1>
+                <p className="t-body" style={{ color: 'var(--ink-2)' }}>
+                  Create your family and add your first child. You can add more children from the parent dashboard.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <FormField label="Family name" hint="e.g. The Smiths">
+                  <input
+                    className="field-input"
+                    type="text"
+                    placeholder="Your family name"
+                    value={familyName}
+                    onChange={(e) => setFamilyName(e.target.value)}
+                    autoFocus
+                  />
+                </FormField>
+
+                <FormField label="First child's name">
+                  <input
+                    className="field-input"
+                    type="text"
+                    placeholder="Child's first name"
+                    value={childName}
+                    onChange={(e) => setChildName(e.target.value)}
+                  />
+                </FormField>
+
+                <div>
+                  <p className="t-label" style={{ marginBottom: 10, color: 'var(--ink-2)' }}>Avatar color</p>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {AVATAR_PRESETS.map((preset, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setChildAvatar(preset)}
+                        style={{
+                          padding: 0,
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          borderRadius: childName ? `calc(${48 * 0.3}px + 3px)` : undefined,
+                          outline: childAvatar === preset
+                            ? '3px solid var(--brand)'
+                            : '3px solid transparent',
+                          outlineOffset: 2,
+                        }}
+                      >
+                        <Avatar
+                          size={48}
+                          initial={childName ? childName.charAt(0).toUpperCase() : '?'}
+                          avatar={preset}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {error && <div role="alert" style={errorStyle}>{error}</div>}
+
+                <Button variant="primary" size="lg" block disabled={busy} onClick={() => void handleCreate()}>
+                  {busy ? 'Creating…' : 'Create family'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
-}
-
-interface FamilyStepProps {
-  familyName: string
-  childName: string
-  childAvatar: ChildAvatar
-  error: string | null
-  onFamilyNameChange: (v: string) => void
-  onChildNameChange: (v: string) => void
-  onAvatarChange: (v: ChildAvatar) => void
-  onNext: () => void
-}
-
-function FamilyStep({
-  familyName,
-  childName,
-  childAvatar,
-  error,
-  onFamilyNameChange,
-  onChildNameChange,
-  onAvatarChange,
-  onNext,
-}: FamilyStepProps) {
-  return (
-    <>
-      <div style={{ marginBottom: 32 }}>
-        <p className="t-label" style={{ color: 'var(--ink-3)', marginBottom: 4 }}>Step 1 of 2</p>
-        <h1 className="t-h1" style={{ marginBottom: 8 }}>Create your family</h1>
-        <p className="t-body" style={{ color: 'var(--ink-2)' }}>
-          Set up your family and add your first child.
-        </p>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <FormField label="Family name" hint="e.g. The Smiths">
-          <input
-            className="field-input"
-            type="text"
-            placeholder="Your family name"
-            value={familyName}
-            onChange={(e) => onFamilyNameChange(e.target.value)}
-            autoFocus
-          />
-        </FormField>
-
-        <FormField label="Child's name">
-          <input
-            className="field-input"
-            type="text"
-            placeholder="Child's first name"
-            value={childName}
-            onChange={(e) => onChildNameChange(e.target.value)}
-          />
-        </FormField>
-
-        <div>
-          <p className="t-label" style={{ marginBottom: 10, color: 'var(--ink-2)' }}>Avatar color</p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {AVATAR_PRESETS.map((preset, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onAvatarChange(preset)}
-                style={{
-                  padding: 0,
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  borderRadius: childName ? `calc(${48 * 0.3}px + 3px)` : undefined,
-                  outline: childAvatar === preset
-                    ? `3px solid var(--brand)`
-                    : '3px solid transparent',
-                  outlineOffset: 2,
-                }}
-              >
-                <Avatar
-                  size={48}
-                  initial={childName ? childName.charAt(0).toUpperCase() : '?'}
-                  avatar={preset}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {error && (
-          <div role="alert" style={errorStyle}>{error}</div>
-        )}
-
-        <Button variant="primary" size="lg" block onClick={onNext}>
-          Continue
-        </Button>
-      </div>
-    </>
-  )
-}
-
-interface InviteStepProps {
-  childName: string
-  childAvatar: ChildAvatar
-  childEmail: string
-  busy: boolean
-  error: string | null
-  onEmailChange: (v: string) => void
-  onBack: () => void
-  onSend: () => void
-}
-
-function InviteStep({
-  childName,
-  childAvatar,
-  childEmail,
-  busy,
-  error,
-  onEmailChange,
-  onBack,
-  onSend,
-}: InviteStepProps) {
-  return (
-    <>
-      <div style={{ marginBottom: 32 }}>
-        <p className="t-label" style={{ color: 'var(--ink-3)', marginBottom: 4 }}>Step 2 of 2</p>
-        <h1 className="t-h1" style={{ marginBottom: 8 }}>Invite {childName}</h1>
-        <p className="t-body" style={{ color: 'var(--ink-2)' }}>
-          Send {childName} an invitation link to join your family.
-        </p>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Avatar size={52} initial={childName.charAt(0).toUpperCase()} avatar={childAvatar} />
-          <div>
-            <p className="t-label" style={{ color: 'var(--ink-3)', fontSize: 12 }}>Child</p>
-            <p className="t-body" style={{ fontWeight: 600 }}>{childName}</p>
-          </div>
-        </div>
-
-        <FormField label="Child's email address" hint="They'll receive a sign-in link at this address">
-          <input
-            className="field-input"
-            type="email"
-            placeholder="child@example.com"
-            value={childEmail}
-            onChange={(e) => onEmailChange(e.target.value)}
-            autoFocus
-          />
-        </FormField>
-
-        {error && (
-          <div role="alert" style={errorStyle}>{error}</div>
-        )}
-
-        <Button variant="primary" size="lg" block disabled={busy} onClick={onSend}>
-          {busy ? 'Sending…' : 'Send invitation'}
-        </Button>
-        <Button variant="ghost" size="md" block disabled={busy} onClick={onBack}>
-          Back
-        </Button>
-      </div>
-    </>
   )
 }
 

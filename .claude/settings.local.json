@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(grep *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Dev\\\\PERSONAL\\\\quivo\\\\tests\" -Recurse | Where-Object {!$_.PSIsContainer} | Select-Object FullName)",
+      "Bash(python3 *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

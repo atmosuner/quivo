@@ -13,6 +13,7 @@ import {
 } from '../child/index.ts'
 import { getActiveChild } from './selectors.ts'
 import { ChildStack } from './ChildStack.tsx'
+import { ChildSelector } from './ChildSelector.tsx'
 import { NoActiveChild } from './NoActiveChild.tsx'
 import { ActionErrorBanner } from './ActionErrorBanner.tsx'
 import { RecoveryBanner } from './RecoveryBanner.tsx'
@@ -40,6 +41,7 @@ export function ChildShell() {
   const setActiveTab = useAppStore((state) => state.setActiveTab)
   const childStack = useAppStore((state) => state.childStack)
   const popChildScreen = useAppStore((state) => state.popChildScreen)
+  const childUnlocked = useAppStore((state) => state.childUnlocked)
   const isLoading = useFamilyStore((state) => state.isLoading)
   const error = useFamilyStore((state) => state.error)
   const snapshot = useFamilyStore((state) => state.snapshot)
@@ -73,6 +75,10 @@ export function ChildShell() {
       session.showNextEffect()
     }
   }, [])
+
+  if (!isLoading && snapshot && !childUnlocked) {
+    return <ChildSelector />
+  }
 
   return (
     <div className="q-app">
