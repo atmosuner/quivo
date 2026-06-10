@@ -607,7 +607,6 @@
   display: flex;
   justify-content: center;
   margin: 16px auto 0;
-  max-width: 320px;
   min-height: 78px;
 }
 

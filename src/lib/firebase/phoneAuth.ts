@@ -7,8 +7,47 @@ export function normalizePhoneNumber(raw: string): string | null {
   return normalized
 }
 
-export function phoneAuthErrorMessage(error: unknown): string {
-  const code = (error as { code?: string })?.code
+function billingNotEnabledMessage(projectId?: string): string {
+  const projectHint = projectId ? ` Project: ${projectId}.` : ''
+  return (
+    `SMS billing is not active for this Firebase project yet.${projectHint} If you recently upgraded to Blaze, wait up to 24 hours for billing to propagate. In Google Cloud Console → Billing, confirm this project has a linked billing account with a valid payment method.`
+  )
+}
+
+function invalidAppCredentialMessage(): string {
+  return (
+    'App verification failed. Check the "I\'m not a robot" box, then tap Send code. If it still fails, open Firebase → Authentication → Settings → Fraud prevention → reCAPTCHA and set phone enforcement to Audit (or Off) while testing.'
+  )
+}
+
+function operationNotAllowedMessage(serverMessage: string): string {
+  if (/region/i.test(serverMessage)) {
+    return (
+      'SMS is not allowed for this country yet. In Firebase Console open Authentication → Settings → SMS region policy, choose Allow, and add Turkey (TR) — or your target region — then try again.'
+    )
+  }
+
+  return (
+    'Phone SMS is blocked for this project. Check: (1) Phone provider enabled, (2) Authentication → Settings → SMS region policy allows your country, (3) Blaze billing is enabled for real phone numbers.'
+  )
+}
+
+export function phoneAuthErrorMessage(error: unknown, projectId?: string): string {
+  const { code, message: serverMessage = '' } = (error ?? {}) as {
+    code?: string
+    message?: string
+  }
+
+  if (/BILLING_NOT_ENABLED/i.test(serverMessage)) {
+    return billingNotEnabledMessage(projectId)
+  }
+
+  if (
+    code === 'auth/invalid-app-credential' ||
+    /INVALID_APP_CREDENTIAL/i.test(serverMessage)
+  ) {
+    return invalidAppCredentialMessage()
+  }
 
   switch (code) {
     case 'auth/invalid-phone-number':
@@ -20,12 +59,14 @@ export function phoneAuthErrorMessage(error: unknown): string {
     case 'auth/too-many-requests':
       return 'Too many attempts. Wait a few minutes, then try again.'
     case 'auth/operation-not-allowed':
-      return 'Phone sign-in is not enabled in Firebase Authentication.'
+      return operationNotAllowedMessage(serverMessage)
     case 'auth/quota-exceeded':
       return 'SMS quota exceeded. Enable billing (Blaze plan) in Firebase to send real codes.'
     case 'auth/billing-not-enabled':
-      return 'Firebase billing is required for phone SMS. Upgrade to the Blaze plan.'
+      return billingNotEnabledMessage(projectId)
     default:
-      return 'Could not send code. Check the number, complete verification, and try again.'
+      return serverMessage
+        ? `Could not send code: ${serverMessage}`
+        : 'Could not send code. Check the number, complete verification, and try again.'
   }
 }

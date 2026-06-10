@@ -8,7 +8,7 @@ import {
 } from 'firebase/auth'
 import { Button, Field } from '../../components/index.ts'
 import { shield } from '../../components/icons/icons.tsx'
-import { auth } from '../../lib/firebase/app.ts'
+import { auth, firebaseProjectId } from '../../lib/firebase/app.ts'
 import { normalizePhoneNumber, phoneAuthErrorMessage } from '../../lib/firebase/phoneAuth.ts'
 import {
   acquireRecaptcha,
@@ -92,15 +92,25 @@ export function ParentGate() {
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [recaptchaReady, setRecaptchaReady] = useState(false)
+  const [recaptchaSolved, setRecaptchaSolved] = useState(false)
 
   const confirmationRef = useRef<ConfirmationResult | null>(null)
   const autoSendStartedRef = useRef(false)
 
-  useEffect(() => {
+  const initRecaptcha = () => {
     resetRecaptcha()
+    setRecaptchaReady(false)
+    setRecaptchaSolved(false)
+    return acquireRecaptcha({
+      onSolved: () => setRecaptchaSolved(true),
+      onExpired: () => setRecaptchaSolved(false),
+    })
+  }
+
+  useEffect(() => {
     let cancelled = false
 
-    void acquireRecaptcha()
+    void initRecaptcha()
       .then(() => {
         if (!cancelled) setRecaptchaReady(true)
       })
@@ -131,11 +141,9 @@ export function ParentGate() {
       setStep('otp')
     } catch (error) {
       if (import.meta.env.DEV) console.error('Phone auth send failed:', error)
-      setMessage(phoneAuthErrorMessage(error))
-      resetRecaptcha()
-      setRecaptchaReady(false)
+      setMessage(phoneAuthErrorMessage(error, firebaseProjectId))
       try {
-        await acquireRecaptcha()
+        await initRecaptcha()
         setRecaptchaReady(true)
       } catch {
         setMessage('Could not reload verification. Refresh and try again.')
@@ -203,7 +211,7 @@ export function ParentGate() {
   }
 
   const displayPhone = existingPhone ?? phoneInput
-  const phoneReady = recaptchaReady && !busy
+  const phoneReady = recaptchaReady && recaptchaSolved && !busy
 
   return (
     <div className="q-app">
@@ -238,8 +246,8 @@ export function ParentGate() {
                 : `We sent a 6-digit code to ${displayPhone}.`}
             </p>
 
-            {step === 'phone' && (
-              <div style={{ marginTop: 24, width: '100%', maxWidth: 320, marginInline: 'auto' }}>
+            <div style={{ marginTop: 24, width: '100%', maxWidth: 320, marginInline: 'auto' }}>
+              {step === 'phone' && (
                 <Field
                   label="Phone number"
                   type="tel"
@@ -249,18 +257,40 @@ export function ParentGate() {
                   disabled={busy}
                   autoComplete="tel"
                 />
-                {message && <div className="pin-message">{message}</div>}
-                <Button
-                  variant="primary"
-                  size="md"
-                  block
-                  disabled={!phoneReady || !phoneInput.trim()}
-                  onClick={() => void sendOtp(phoneInput)}
-                >
-                  {busy ? 'Sending…' : recaptchaReady ? 'Send code' : 'Loading verification…'}
-                </Button>
-              </div>
-            )}
+              )}
+
+              <div
+                id={RECAPTCHA_CONTAINER_ID}
+                className={`quivo-recaptcha-host${step === 'phone' ? '' : ' quivo-recaptcha-host--hidden'}`}
+                aria-hidden={step !== 'phone'}
+              />
+
+              {step === 'phone' && (
+                <>
+                  {!recaptchaSolved && recaptchaReady && (
+                    <p className="t-caption" style={{ marginTop: 8 }}>
+                      Complete the checkbox above before sending.
+                    </p>
+                  )}
+                  {message && <div className="pin-message">{message}</div>}
+                  <Button
+                    variant="primary"
+                    size="md"
+                    block
+                    disabled={!phoneReady || !phoneInput.trim()}
+                    onClick={() => void sendOtp(phoneInput)}
+                  >
+                    {busy
+                      ? 'Sending…'
+                      : !recaptchaReady
+                        ? 'Loading verification…'
+                        : !recaptchaSolved
+                          ? 'Complete verification first'
+                          : 'Send code'}
+                  </Button>
+                </>
+              )}
+            </div>
 
             {step === 'otp' && (
               <>
@@ -281,9 +311,7 @@ export function ParentGate() {
                     setStep('phone')
                     setOtp('')
                     setMessage(null)
-                    resetRecaptcha()
-                    setRecaptchaReady(false)
-                    void acquireRecaptcha()
+                    void initRecaptcha()
                       .then(() => setRecaptchaReady(true))
                       .catch(() => setMessage('Could not reload verification. Refresh and try again.'))
                   }}
@@ -292,12 +320,6 @@ export function ParentGate() {
                 </Button>
               </>
             )}
-
-            <div
-              id={RECAPTCHA_CONTAINER_ID}
-              className={`quivo-recaptcha-host${step === 'otp' ? ' quivo-recaptcha-host--hidden' : ''}`}
-              aria-hidden={step === 'otp'}
-            />
 
             <Button
               variant="ghost"

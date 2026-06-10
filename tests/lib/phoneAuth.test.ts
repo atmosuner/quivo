@@ -16,6 +16,26 @@ describe('normalizePhoneNumber', () => {
 describe('phoneAuthErrorMessage', () => {
   it('maps known Firebase auth codes', () => {
     expect(phoneAuthErrorMessage({ code: 'auth/invalid-phone-number' })).toMatch(/country code/i)
-    expect(phoneAuthErrorMessage({ code: 'auth/billing-not-enabled' })).toMatch(/billing/i)
+    expect(
+      phoneAuthErrorMessage({ code: 'auth/billing-not-enabled' }, 'quivo-f811b'),
+    ).toMatch(/quivo-f811b/)
+  })
+
+  it('explains reCAPTCHA for invalid app credential', () => {
+    expect(
+      phoneAuthErrorMessage({
+        code: 'auth/invalid-app-credential',
+        message: 'INVALID_APP_CREDENTIAL',
+      }),
+    ).toMatch(/robot/i)
+  })
+
+  it('explains SMS region policy for operation-not-allowed', () => {
+    expect(
+      phoneAuthErrorMessage({
+        code: 'auth/operation-not-allowed',
+        message: 'SMS unable to be sent until this region enabled by the app developer.',
+      }),
+    ).toMatch(/SMS region policy/i)
   })
 })

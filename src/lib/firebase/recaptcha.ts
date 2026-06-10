@@ -3,11 +3,26 @@ import { auth } from './app.ts'
 
 export const RECAPTCHA_CONTAINER_ID = 'quivo-recaptcha'
 
+export interface RecaptchaHandlers {
+  onSolved?: () => void
+  onExpired?: () => void
+}
+
 let verifier: RecaptchaVerifier | null = null
 let renderTask: Promise<RecaptchaVerifier> | null = null
+let handlers: RecaptchaHandlers | undefined
+let solved = false
+
+export function isRecaptchaSolved(): boolean {
+  return solved
+}
 
 /** Create or reuse a rendered reCAPTCHA widget bound to the app-level container. */
-export function acquireRecaptcha(): Promise<RecaptchaVerifier> {
+export function acquireRecaptcha(nextHandlers?: RecaptchaHandlers): Promise<RecaptchaVerifier> {
+  if (nextHandlers) {
+    handlers = nextHandlers
+  }
+
   const container = document.getElementById(RECAPTCHA_CONTAINER_ID)
   if (!container) {
     return Promise.reject(new Error(`Missing #${RECAPTCHA_CONTAINER_ID} in the document.`))
@@ -17,12 +32,17 @@ export function acquireRecaptcha(): Promise<RecaptchaVerifier> {
     return renderTask
   }
 
+  solved = false
+
   verifier = new RecaptchaVerifier(auth, RECAPTCHA_CONTAINER_ID, {
     size: 'normal',
     callback: () => {
-      /* solved — signInWithPhoneNumber proceeds */
+      solved = true
+      handlers?.onSolved?.()
     },
     'expired-callback': () => {
+      solved = false
+      handlers?.onExpired?.()
       resetRecaptcha()
     },
   })
@@ -48,4 +68,5 @@ export function resetRecaptcha(): void {
   }
   verifier = null
   renderTask = null
+  solved = false
 }
