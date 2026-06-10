@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { initializeAuth, browserLocalPersistence } from 'firebase/auth'
+import { initializeAuth, browserLocalPersistence, browserPopupRedirectResolver } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 function requireFirebaseEnv(name: keyof ImportMetaEnv): string {
@@ -23,5 +23,8 @@ const firebaseConfig = {
 
 export const firebaseApp = initializeApp(firebaseConfig)
 export const firebaseProjectId = firebaseConfig.projectId
-export const auth = initializeAuth(firebaseApp, { persistence: browserLocalPersistence })
+export const auth = initializeAuth(firebaseApp, {
+  persistence: browserLocalPersistence,
+  popupRedirectResolver: browserPopupRedirectResolver,
+})
 export const db = getFirestore(firebaseApp)
