@@ -1,266 +1,238 @@
-import { useEffect, useState } from 'react'
-import { Button } from '../../components/index.ts'
-import { detectEmailLinkSignIn, completeEmailLinkSignIn } from '../../lib/firebase/emailInvite.ts'
-import { getUserProfile, saveUserProfile } from '../../lib/firebase/userProfile.ts'
+import { useEffect, useRef, useState } from 'react'
+import jsQR from 'jsqr'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '../../lib/firebase/app.ts'
 import { FirestoreRepository } from '../../lib/storage/firestoreRepository.ts'
+import { DEVICE_FAMILY_ID_KEY, DEVICE_ROLE_KEY } from '../../lib/storage/keys.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { useSessionStore } from '../../stores/sessionStore.ts'
 
-type Phase = 'confirm' | 'open-in-app' | 'completing' | 'error'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const isStandalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+type Phase = 'scanning' | 'connecting' | 'error'
 
 export function ChildJoinScreen() {
-  const linkData = detectEmailLinkSignIn()
-  const isInvitation = !!(linkData?.familyId && linkData?.childId)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const connectingRef = useRef(false)
 
-  const [email, setEmail] = useState(linkData?.email ?? '')
-  const [phase, setPhase] = useState<Phase>('confirm')
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [phase, setPhase] = useState<Phase>('scanning')
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!linkData) return
-    if (!isStandalone()) {
-      // Don't consume the link — show copy-to-app screen instead
-      setPhase('open-in-app')
-      return
-    }
-    if (linkData.email) {
-      void completeJoin(linkData.email)
-    }
-  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+  }
 
-  const completeJoin = async (emailAddr: string) => {
-    if (!linkData) return
-    if (!isStandalone()) {
-      setPhase('open-in-app')
-      return
-    }
-    setPhase('completing')
-    setErrorMsg(null)
+  const connect = async (familyId: string) => {
+    if (connectingRef.current) return
+    connectingRef.current = true
+    stopCamera()
+    setPhase('connecting')
 
     try {
-      const user = await completeEmailLinkSignIn(emailAddr)
+      const snap = await getDoc(doc(db, 'families', familyId, 'data', 'snapshot'))
+      if (!snap.exists()) throw new Error('not_found')
 
-      if (isInvitation) {
-        await saveUserProfile(user.uid, {
-          role: 'child',
-          familyId: linkData.familyId!,
-          childId: linkData.childId!,
-          createdAt: new Date().toISOString(),
-        })
+      localStorage.setItem(DEVICE_ROLE_KEY, 'child')
+      localStorage.setItem(DEVICE_FAMILY_ID_KEY, familyId)
 
-        useFamilyStore.getState().setRepository(new FirestoreRepository(linkData.familyId!))
-        useSessionStore.getState().clearEffects()
-        useParentGateStore.getState().clearSession()
-        useAppStore.getState().resetNavigation()
-        await useFamilyStore.getState().bootstrap()
+      useAppStore.getState().setDeviceRole('child')
+      useFamilyStore.getState().setRepository(new FirestoreRepository(familyId))
+      useSessionStore.getState().clearEffects()
+      useParentGateStore.getState().clearSession()
+      useAppStore.getState().resetNavigation()
+      await useFamilyStore.getState().bootstrap()
+    } catch (err) {
+      const msg = (err as { message?: string })?.message === 'not_found'
+        ? "No family found. Ask your parent to show the QR code again."
+        : "Couldn't connect. Check your connection and try again."
+      setError(msg)
+      setPhase('error')
+      connectingRef.current = false
+    }
+  }
 
-        const snapshot = useFamilyStore.getState().snapshot
-        if (snapshot && snapshot.family.settings.activeChildId !== linkData.childId) {
-          const exists = snapshot.family.children.some((c) => c.id === linkData.childId)
-          if (exists) await useFamilyStore.getState().switchActiveChild(linkData.childId!)
-        }
-      } else {
-        const profile = await getUserProfile(user.uid)
-        if (!profile) {
-          setErrorMsg(
-            "No Quivo account found for this email. Ask your parent to send you an invitation.",
-          )
-          setPhase('error')
-          return
-        }
+  useEffect(() => {
+    let cancelled = false
+    let raf = 0
 
-        useFamilyStore.getState().setRepository(new FirestoreRepository(profile.familyId))
-        useSessionStore.getState().clearEffects()
-        useParentGateStore.getState().clearSession()
-        useAppStore.getState().resetNavigation()
-        await useFamilyStore.getState().bootstrap()
+    const tick = () => {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      if (!video || !canvas || cancelled) return
 
-        if (profile.childId) {
-          const snapshot = useFamilyStore.getState().snapshot
-          if (snapshot && snapshot.family.settings.activeChildId !== profile.childId) {
-            const exists = snapshot.family.children.some((c) => c.id === profile.childId)
-            if (exists) await useFamilyStore.getState().switchActiveChild(profile.childId)
+      if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(video, 0, 0)
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          const code = jsQR(img.data, img.width, img.height)
+          if (code?.data && UUID_RE.test(code.data)) {
+            void connect(code.data)
+            return
           }
         }
       }
-    } catch (err) {
-      const code = (err as { code?: string })?.code
-      const errorMessage =
-        code === 'auth/invalid-action-code'
-          ? 'This link has expired or already been used. Request a new one.'
-          : code === 'auth/invalid-email'
-            ? 'That email address does not match the one this link was sent to.'
-            : (err as { message?: string })?.message ?? 'Could not complete sign-in. Please try again.'
-      setErrorMsg(errorMessage)
-      setPhase('error')
-    }
-  }
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2500)
-    } catch {
-      // clipboard not available — user can select and copy manually
+      raf = requestAnimationFrame(tick)
     }
-  }
 
-  if (!linkData) {
-    return (
-      <div className="q-app">
-        <div className="q-main">
-          <div className="q-scroll">
-            <div className="q-body" style={{ paddingTop: 80, textAlign: 'center' }}>
-              <h1 className="t-h1" style={{ marginBottom: 10 }}>Invalid link</h1>
-              <p className="t-body" style={{ color: 'var(--ink-2)' }}>
-                This link is not valid. Ask your parent to send a new invitation.
-              </p>
-              <Button
-                variant="ghost"
-                size="md"
-                style={{ marginTop: 24 }}
-                onClick={() => useAppStore.getState().setOnboardingScreen('landing')}
-              >
-                Back to start
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    const start = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+        })
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+          raf = requestAnimationFrame(tick)
+        }
+      } catch {
+        if (!cancelled) {
+          setError('Camera access is needed to scan the code. Please allow it and try again.')
+          setPhase('error')
+        }
+      }
+    }
+
+    void start()
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(raf)
+      stopCamera()
+    }
+  }, [])
+
+  const goBack = () => {
+    stopCamera()
+    useAppStore.getState().setOnboardingScreen('landing')
   }
 
   return (
-    <div className="q-app">
+    <div className="q-app" style={{ background: '#000' }}>
       <div className="q-main">
-        <div className="q-scroll">
-          <div className="q-body" style={{ paddingTop: 80, paddingBottom: 48 }}>
-            <div style={{ maxWidth: 340, marginInline: 'auto', textAlign: 'center' }}>
+        {phase === 'scanning' && (
+          <>
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-              {phase === 'open-in-app' && (
-                <>
-                  <div
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: '50%',
-                      background: 'var(--brand-tint)',
-                      display: 'grid',
-                      placeItems: 'center',
-                      margin: '0 auto 20px',
-                      fontSize: 28,
-                    }}
-                  >
-                    📋
-                  </div>
-                  <h1 className="t-h1" style={{ marginBottom: 10 }}>Open in the Quivo app</h1>
-                  <p className="t-body" style={{ color: 'var(--ink-2)', marginBottom: 24 }}>
-                    You opened this link in a browser. To sign in to the home screen app, copy this link and paste it inside Quivo.
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    block
-                    style={{ marginBottom: 12 }}
-                    onClick={() => void handleCopyLink()}
-                  >
-                    {copied ? '✓ Copied!' : 'Copy sign-in link'}
-                  </Button>
-                  <div
-                    style={{
-                      background: 'var(--surface)',
-                      borderRadius: 'var(--r-lg)',
-                      padding: '14px 16px',
-                      boxShadow: 'var(--sh-1)',
-                      textAlign: 'left',
-                      fontSize: 13,
-                      color: 'var(--ink-2)',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    <strong style={{ color: 'var(--ink)' }}>Steps:</strong>
-                    <ol style={{ margin: '8px 0 0', paddingLeft: 18 }}>
-                      <li>Tap <strong>Copy sign-in link</strong> above</li>
-                      <li>Open <strong>Quivo</strong> from your home screen</li>
-                      <li>Tap <strong>I'm a Child</strong> → enter your email → you'll see a <em>Paste link</em> field</li>
-                      <li>Paste the link and tap <strong>Continue</strong></li>
-                    </ol>
-                  </div>
-                </>
-              )}
-
-              {phase === 'completing' && (
-                <div className="t-body" role="status" style={{ color: 'var(--ink-2)' }}>
-                  {isInvitation ? 'Joining your family…' : 'Signing in…'}
-                </div>
-              )}
-
-              {phase === 'confirm' && (
-                <>
-                  <h1 className="t-h1" style={{ marginBottom: 10 }}>
-                    {isInvitation ? 'Join your family' : 'Sign in to Quivo'}
-                  </h1>
-                  <p className="t-body" style={{ color: 'var(--ink-2)', marginBottom: 32 }}>
-                    {isInvitation
-                      ? 'Confirm your email address to complete your account.'
-                      : 'Confirm your email address to continue.'}
-                  </p>
-
-                  <div style={{ textAlign: 'left', marginBottom: 20 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <label className="t-label">Your email address</label>
-                      <input
-                        className="field-input"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    block
-                    onClick={() => void completeJoin(email)}
-                  >
-                    Continue
-                  </Button>
-                </>
-              )}
-
-              {phase === 'error' && (
-                <>
-                  <h1 className="t-h1" style={{ marginBottom: 10 }}>Could not sign in</h1>
-                  {errorMsg && (
-                    <p className="t-body" style={{ color: 'oklch(0.45 0.15 15)', marginBottom: 24 }}>
-                      {errorMsg}
-                    </p>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="md"
-                    onClick={() => useAppStore.getState().setOnboardingScreen('landing')}
-                  >
-                    Back to start
-                  </Button>
-                </>
-              )}
-
+            <div
+              style={{
+                position: 'fixed', inset: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <div style={{ position: 'relative', width: 220, height: 220 }}>
+                {(['tl', 'tr', 'bl', 'br'] as const).map((pos) => (
+                  <Corner key={pos} pos={pos} />
+                ))}
+              </div>
+              <div
+                style={{
+                  marginTop: 28, color: '#fff', fontSize: 15, fontWeight: 600,
+                  textAlign: 'center', textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+                  fontFamily: 'var(--font)', maxWidth: 240,
+                }}
+              >
+                Point at the QR code on the parent device
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={goBack}
+              style={{
+                position: 'fixed', top: 52, left: 20, pointerEvents: 'auto',
+                background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none',
+                borderRadius: 99, padding: '8px 16px', fontSize: 14,
+                fontWeight: 600, fontFamily: 'var(--font)', cursor: 'pointer',
+              }}
+            >
+              ← Back
+            </button>
+          </>
+        )}
+
+        {phase === 'connecting' && (
+          <div
+            style={{
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              height: '100%', gap: 16,
+            }}
+          >
+            <div className="t-body" style={{ color: '#fff', fontWeight: 600 }}>Connecting to your family…</div>
           </div>
-        </div>
+        )}
+
+        {phase === 'error' && (
+          <div
+            style={{
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              height: '100%', gap: 20, padding: 32, textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 48 }}>⚠️</div>
+            <div className="t-h3" style={{ color: '#fff' }}>{error}</div>
+            <button
+              type="button"
+              onClick={goBack}
+              style={{
+                background: '#fff', color: '#000', border: 'none',
+                borderRadius: 99, padding: '12px 28px',
+                fontSize: 15, fontWeight: 700, fontFamily: 'var(--font)', cursor: 'pointer',
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+type CornerPos = 'tl' | 'tr' | 'bl' | 'br'
+
+function Corner({ pos }: { pos: CornerPos }) {
+  const size = 28
+  const t = 4
+  const color = '#fff'
+  const r = 6
+  return (
+    <div
+      style={{
+        position: 'absolute', width: size, height: size,
+        top: pos.startsWith('t') ? 0 : undefined,
+        bottom: pos.startsWith('b') ? 0 : undefined,
+        left: pos.endsWith('l') ? 0 : undefined,
+        right: pos.endsWith('r') ? 0 : undefined,
+        borderTop: pos.startsWith('t') ? `${t}px solid ${color}` : undefined,
+        borderBottom: pos.startsWith('b') ? `${t}px solid ${color}` : undefined,
+        borderLeft: pos.endsWith('l') ? `${t}px solid ${color}` : undefined,
+        borderRight: pos.endsWith('r') ? `${t}px solid ${color}` : undefined,
+        borderTopLeftRadius: pos === 'tl' ? r : undefined,
+        borderTopRightRadius: pos === 'tr' ? r : undefined,
+        borderBottomLeftRadius: pos === 'bl' ? r : undefined,
+        borderBottomRightRadius: pos === 'br' ? r : undefined,
+      }}
+    />
   )
 }

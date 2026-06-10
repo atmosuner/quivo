@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import type { User } from 'firebase/auth'
 import { Avatar, Button } from '../../components/index.ts'
-import { auth } from '../../lib/firebase/app.ts'
-import { saveUserProfile } from '../../lib/firebase/userProfile.ts'
 import { FirestoreRepository } from '../../lib/storage/firestoreRepository.ts'
+import { DEVICE_FAMILY_ID_KEY, DEVICE_ROLE_KEY } from '../../lib/storage/keys.ts'
 import { createNewFamilySnapshot } from '../../data/newFamily.ts'
 import type { ChildAvatar } from '../../types/domain.ts'
 import { useAppStore } from '../../stores/appStore.ts'
@@ -23,64 +20,42 @@ const AVATAR_PRESETS: ChildAvatar[] = [
 ]
 
 export function ParentSetupScreen() {
-  const [user, setUser] = useState<User | null>(auth.currentUser)
   const [familyName, setFamilyName] = useState('')
   const [childName, setChildName] = useState('')
   const [childAvatar, setChildAvatar] = useState<ChildAvatar>(AVATAR_PRESETS[0])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, setUser)
-    return unsub
-  }, [])
-
   const handleCreate = async () => {
-    if (!familyName.trim()) {
-      setError('Please enter your family name.')
-      return
-    }
-    if (!childName.trim()) {
-      setError("Please enter your child's name.")
-      return
-    }
-    if (!user) {
-      setError('Not signed in. Please refresh and try again.')
-      return
-    }
+    if (!familyName.trim()) { setError('Please enter your family name.'); return }
+    if (!childName.trim()) { setError("Please enter your child's name."); return }
 
     setBusy(true)
     setError(null)
 
     try {
+      const familyId = crypto.randomUUID()
       const childId = crypto.randomUUID()
-      const snapshot = createNewFamilySnapshot(user.uid, familyName.trim(), {
+      const snapshot = createNewFamilySnapshot(familyId, familyName.trim(), {
         id: childId,
         name: childName.trim(),
         avatar: childAvatar,
       })
 
-      const repo = new FirestoreRepository(user.uid)
+      const repo = new FirestoreRepository(familyId)
       await repo.save(snapshot)
 
-      await saveUserProfile(user.uid, {
-        role: 'parent',
-        familyId: user.uid,
-        createdAt: new Date().toISOString(),
-      })
+      localStorage.setItem(DEVICE_ROLE_KEY, 'parent')
+      localStorage.setItem(DEVICE_FAMILY_ID_KEY, familyId)
 
+      useAppStore.getState().setDeviceRole('parent')
       useFamilyStore.getState().setRepository(repo)
       useSessionStore.getState().clearEffects()
       useParentGateStore.getState().clearSession()
       useAppStore.getState().resetNavigation()
       await useFamilyStore.getState().reload()
-      // resetNavigation already set mode='child', childUnlocked=false — child selector shows
     } catch (err) {
-      const code = (err as { code?: string })?.code
-      const msg =
-        code === 'permission-denied'
-          ? 'Firestore security rules are blocking writes. Deploy the firestore.rules file from the project root.'
-          : (err as { message?: string })?.message ?? 'Something went wrong. Please try again.'
+      const msg = (err as { message?: string })?.message ?? 'Something went wrong. Please try again.'
       setError(msg)
       setBusy(false)
     }
@@ -92,6 +67,17 @@ export function ParentSetupScreen() {
         <div className="q-scroll">
           <div className="q-body" style={{ paddingTop: 48, paddingBottom: 48 }}>
             <div style={{ maxWidth: 360, marginInline: 'auto' }}>
+              <button
+                type="button"
+                onClick={() => useAppStore.getState().setOnboardingScreen('landing')}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--ink-3)', fontFamily: 'var(--font)', fontWeight: 600,
+                  fontSize: 14, padding: '0 0 20px',
+                }}
+              >
+                ← Back
+              </button>
               <div style={{ marginBottom: 32 }}>
                 <h1 className="t-h1" style={{ marginBottom: 8 }}>Set up your family</h1>
                 <p className="t-body" style={{ color: 'var(--ink-2)' }}>
@@ -122,7 +108,7 @@ export function ParentSetupScreen() {
                 </FormField>
 
                 <div>
-                  <p className="t-label" style={{ marginBottom: 10, color: 'var(--ink-2)' }}>Avatar color</p>
+                  <p className="t-label" style={{ marginBottom: 10, color: 'var(--ink-2)' }}>Avatar colour</p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {AVATAR_PRESETS.map((preset, i) => (
                       <button
@@ -130,14 +116,9 @@ export function ParentSetupScreen() {
                         type="button"
                         onClick={() => setChildAvatar(preset)}
                         style={{
-                          padding: 0,
-                          border: 'none',
-                          background: 'none',
-                          cursor: 'pointer',
+                          padding: 0, border: 'none', background: 'none', cursor: 'pointer',
                           borderRadius: childName ? `calc(${48 * 0.3}px + 3px)` : undefined,
-                          outline: childAvatar === preset
-                            ? '3px solid var(--brand)'
-                            : '3px solid transparent',
+                          outline: childAvatar === preset ? '3px solid var(--brand)' : '3px solid transparent',
                           outlineOffset: 2,
                         }}
                       >

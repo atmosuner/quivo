@@ -14,6 +14,7 @@ interface AppState {
   childStack: ChildStackEntry[]
   parentScreen: ParentScreen
   childUnlocked: boolean
+  deviceRole: 'parent' | 'child' | null
   setMode: (mode: AppMode) => void
   setOnboardingScreen: (screen: OnboardingScreen) => void
   setActiveTab: (tab: ChildTab) => void
@@ -22,6 +23,7 @@ interface AppState {
   resetChildStack: () => void
   setParentScreen: (screen: ParentScreen) => void
   setChildUnlocked: (v: boolean) => void
+  setDeviceRole: (role: 'parent' | 'child') => void
   resetNavigation: () => void
 }
 
@@ -41,6 +43,7 @@ export const useAppStore = create<AppState>((set) => ({
   childStack: [],
   parentScreen: 'dash',
   childUnlocked: false,
+  deviceRole: null,
 
   setMode: (mode) =>
     set({
@@ -67,6 +70,8 @@ export const useAppStore = create<AppState>((set) => ({
   setParentScreen: (screen) => set({ parentScreen: screen }),
 
   setChildUnlocked: (v) => set({ childUnlocked: v }),
+
+  setDeviceRole: (role) => set({ deviceRole: role }),
 
   resetNavigation: () => set(childNavigation),
 }))

@@ -11,6 +11,7 @@ import { useParentSessionValid } from './stores/parentGateStore.ts'
 
 export default function App() {
   const mode = useAppStore((state) => state.mode)
+  const deviceRole = useAppStore((state) => state.deviceRole)
   const isLoading = useFamilyStore((state) => state.isLoading)
   const error = useFamilyStore((state) => state.error)
   const snapshot = useFamilyStore((state) => state.snapshot)
@@ -53,7 +54,7 @@ export default function App() {
     return <BootstrapError message={error ?? 'Family data could not be loaded.'} />
   }
 
-  if (mode === 'parent') {
+  if (mode === 'parent' && deviceRole !== 'child') {
     if (!parentSessionValid) {
       return <ParentGate />
     }

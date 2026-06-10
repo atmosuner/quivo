@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { signOut } from 'firebase/auth'
 import { IconTile, SubHead } from '../../../components/index.ts'
 import { chevR } from '../../../components/icons/icons.tsx'
-import { auth } from '../../../lib/firebase/app.ts'
+import { DEVICE_FAMILY_ID_KEY, DEVICE_ROLE_KEY } from '../../../lib/storage/keys.ts'
 import { useFamilyStore } from '../../../stores/familyStore.ts'
 import { useAppStore } from '../../../stores/appStore.ts'
 import { useParentGateStore } from '../../../stores/parentGateStore.ts'
@@ -40,6 +39,8 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   const child = getActiveChild(snapshot.family)
   const requireApproval = snapshot.family.settings.requireApprovalDefault
 
+  const deviceRole = useAppStore.getState().deviceRole
+
   const openParent = () => {
     const app = useAppStore.getState()
     app.setParentScreen('dash')
@@ -47,11 +48,13 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     app.setMode('parent')
   }
 
-  const handleSignOut = () => {
-    void signOut(auth)
+  const handleDisconnect = () => {
+    localStorage.removeItem(DEVICE_ROLE_KEY)
+    localStorage.removeItem(DEVICE_FAMILY_ID_KEY)
     useFamilyStore.setState({ snapshot: null, isLoading: true })
     useSessionStore.getState().clearEffects()
     useParentGateStore.getState().clearSession()
+    useAppStore.getState().setDeviceRole('child')
     useAppStore.getState().setOnboardingScreen('landing')
     useAppStore.getState().setMode('onboarding')
     useFamilyStore.getState().markReady()
@@ -82,12 +85,12 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     {
       head: 'Parent controls',
       rows: [
-        {
+        ...(deviceRole === 'parent' ? [{
           icon: 'shield',
           label: 'Parent area',
           tone: '--brand',
           action: openParent,
-        },
+        }] : []),
         {
           icon: 'check',
           label: 'Approval required',
@@ -114,9 +117,9 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         },
         {
           icon: 'user',
-          label: 'Sign out',
+          label: 'Disconnect this device',
           tone: '--ink-3',
-          action: handleSignOut,
+          action: handleDisconnect,
         },
       ],
     },

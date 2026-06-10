@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import QRCode from 'qrcode'
 import {
   Avatar,
   Bar,
@@ -13,6 +14,7 @@ import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useAppStore } from '../../stores/appStore.ts'
 import { useParentGateStore } from '../../stores/parentGateStore.ts'
 import { isValidPin } from '../../lib/security/parentPin.ts'
+import { DEVICE_FAMILY_ID_KEY } from '../../lib/storage/keys.ts'
 import { getReferenceDate } from '../shared/selectors.ts'
 import {
   countPendingApprovals,
@@ -116,6 +118,89 @@ function SetPinModal({ childId, childName, hasPin, onClose }: {
   )
 }
 
+function SettingsRow({
+  icon, title, sub, onClick,
+}: {
+  icon: ReactNode
+  title: string
+  sub: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        width: '100%', background: 'var(--surface)', borderRadius: 'var(--r-lg)',
+        boxShadow: 'var(--sh-2)', padding: '14px 16px', border: 'none',
+        font: 'inherit', textAlign: 'left', cursor: 'pointer',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {icon}
+        <div>
+          <div className="t-h3" style={{ fontSize: 15 }}>{title}</div>
+          <div className="t-cap" style={{ marginTop: 1 }}>{sub}</div>
+        </div>
+      </div>
+      <ChevR size={16} stroke="var(--ink-4)" />
+    </button>
+  )
+}
+
+function QrModal({ onClose }: { onClose: () => void }) {
+  const [qrUrl, setQrUrl] = useState<string | null>(null)
+  const familyId = localStorage.getItem(DEVICE_FAMILY_ID_KEY) ?? ''
+
+  useEffect(() => {
+    void QRCode.toDataURL(familyId, { width: 240, margin: 2, color: { dark: '#000', light: '#fff' } })
+      .then(setQrUrl)
+  }, [familyId])
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(0,0,0,0.55)',
+        display: 'flex', alignItems: 'flex-end',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%', background: 'var(--bg)',
+          borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
+          padding: '28px 20px 48px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="t-h3">Connect a child device</div>
+        <p className="t-body" style={{ color: 'var(--ink-2)', textAlign: 'center', fontSize: 14, maxWidth: 280 }}>
+          Open Quivo on the child's device, tap <strong>Child device</strong>, and scan this code.
+        </p>
+        {qrUrl ? (
+          <img
+            src={qrUrl}
+            alt="Family QR code"
+            width={200}
+            height={200}
+            style={{ borderRadius: 12, border: '1px solid var(--line)' }}
+          />
+        ) : (
+          <div style={{ width: 200, height: 200, background: 'var(--surface)', borderRadius: 12, display: 'grid', placeItems: 'center' }}>
+            <div className="t-cap">Generating…</div>
+          </div>
+        )}
+        <p style={{ fontSize: 12, color: 'var(--ink-4)', textAlign: 'center' }}>
+          Keep this code private — anyone who scans it can view your family data.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function SetParentPinModal({ onClose }: { onClose: () => void }) {
   const snapshot = useFamilyStore((state) => state.snapshot)
   const setParentPin = useFamilyStore((state) => state.setParentPin)
@@ -197,6 +282,7 @@ export function ParentDashboard() {
   const lock = useParentGateStore((state) => state.lock)
   const [pinModalChildId, setPinModalChildId] = useState<string | null>(null)
   const [showParentPinModal, setShowParentPinModal] = useState(false)
+  const [showQrModal, setShowQrModal] = useState(false)
 
   if (!snapshot) return null
 
@@ -514,37 +600,22 @@ export function ParentDashboard() {
         </div>
 
         <div className="t-eyebrow" style={{ margin: '24px 2px 12px' }}>
-          Security
+          Security &amp; Devices
         </div>
-        <button
-          type="button"
-          onClick={() => setShowParentPinModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            background: 'var(--surface)',
-            borderRadius: 'var(--r-lg)',
-            boxShadow: 'var(--sh-2)',
-            padding: '14px 16px',
-            border: 'none',
-            font: 'inherit',
-            textAlign: 'left',
-            cursor: 'pointer',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <LockIcon size={16} stroke="var(--brand)" />
-            <div>
-              <div className="t-h3" style={{ fontSize: 15 }}>Parent PIN</div>
-              <div className="t-cap" style={{ marginTop: 1 }}>
-                {family.parentPinHash ? 'Change the PIN for the parent area' : 'Set a PIN for the parent area'}
-              </div>
-            </div>
-          </div>
-          <ChevR size={16} stroke="var(--ink-4)" />
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <SettingsRow
+            icon={<LockIcon size={16} stroke="var(--brand)" />}
+            title="Parent PIN"
+            sub={family.parentPinHash ? 'Change the PIN for the parent area' : 'Set a PIN for the parent area'}
+            onClick={() => setShowParentPinModal(true)}
+          />
+          <SettingsRow
+            icon={<span style={{ fontSize: 18, lineHeight: 1 }}>📱</span>}
+            title="Connect a child device"
+            sub="Show QR code to link another device"
+            onClick={() => setShowQrModal(true)}
+          />
+        </div>
       </div>
     </div>
 
@@ -558,6 +629,9 @@ export function ParentDashboard() {
     )}
     {showParentPinModal && (
       <SetParentPinModal onClose={() => setShowParentPinModal(false)} />
+    )}
+    {showQrModal && (
+      <QrModal onClose={() => setShowQrModal(false)} />
     )}
     </>
   )

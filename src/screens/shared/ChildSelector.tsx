@@ -14,6 +14,7 @@ export function ChildSelector() {
   const snapshot = useFamilyStore((state) => state.snapshot)
   const switchActiveChild = useFamilyStore((state) => state.switchActiveChild)
   const setChildUnlocked = useAppStore((state) => state.setChildUnlocked)
+  const deviceRole = useAppStore((state) => state.deviceRole)
 
   const [phase, setPhase] = useState<Phase>('select')
   const [selected, setSelected] = useState<Child | null>(null)
@@ -158,7 +159,9 @@ export function ChildSelector() {
     )
   }
 
-  const goToParent = () => useAppStore.getState().setMode('parent')
+  const goToParent = deviceRole === 'parent'
+    ? () => useAppStore.getState().setMode('parent')
+    : null
 
   return (
     <div className="q-app">
@@ -217,28 +220,30 @@ export function ChildSelector() {
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={goToParent}
-              style={{
-                marginTop: 48,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 16px',
-                borderRadius: 99,
-                border: '1px solid var(--line)',
-                background: 'var(--surface)',
-                boxShadow: 'var(--sh-1)',
-                cursor: 'pointer',
-                fontFamily: 'var(--font)',
-                fontWeight: 700,
-                fontSize: 13,
-                color: 'var(--ink-2)',
-              }}
-            >
-              <Shield size={14} stroke="var(--brand)" /> Parent area
-            </button>
+            {goToParent && (
+              <button
+                type="button"
+                onClick={goToParent}
+                style={{
+                  marginTop: 48,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 16px',
+                  borderRadius: 99,
+                  border: '1px solid var(--line)',
+                  background: 'var(--surface)',
+                  boxShadow: 'var(--sh-1)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font)',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: 'var(--ink-2)',
+                }}
+              >
+                <Shield size={14} stroke="var(--brand)" /> Parent area
+              </button>
+            )}
           </div>
         </div>
       </div>
