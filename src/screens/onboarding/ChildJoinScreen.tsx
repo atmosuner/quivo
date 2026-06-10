@@ -8,7 +8,8 @@ import { useAppStore } from '../../stores/appStore.ts'
 import { useFamilyStore } from '../../stores/familyStore.ts'
 import { useSessionStore } from '../../stores/sessionStore.ts'
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Firebase UIDs are 28-char alphanumeric; also accept legacy UUID format
+const FAMILY_ID_RE = /^[A-Za-z0-9]{20,40}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type Phase = 'scanning' | 'connecting' | 'error'
 
@@ -71,7 +72,7 @@ export function ChildJoinScreen() {
           ctx.drawImage(video, 0, 0)
           const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
           const code = jsQR(img.data, img.width, img.height)
-          if (code?.data && UUID_RE.test(code.data)) {
+          if (code?.data && FAMILY_ID_RE.test(code.data)) {
             void connect(code.data)
             return
           }
