@@ -84,13 +84,14 @@ export function ParentGate() {
   const unlock = useParentGateStore((state) => state.unlock)
   const lock = useParentGateStore((state) => state.lock)
 
-  const existingPhone = auth.currentUser?.phoneNumber ?? null
+  const linkedPhone = auth.currentUser?.phoneNumber ?? null
 
-  const [step, setStep] = useState<GateStep>(existingPhone ? 'otp' : 'phone')
-  const [phoneInput, setPhoneInput] = useState(existingPhone ?? '')
+  const [step, setStep] = useState<GateStep>('phone')
+  const [phoneInput, setPhoneInput] = useState(linkedPhone ?? '')
   const [otp, setOtp] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [smsPending, setSmsPending] = useState(false)
   const [recaptchaReady, setRecaptchaReady] = useState(false)
   const [recaptchaSolved, setRecaptchaSolved] = useState(false)
 
@@ -133,11 +134,15 @@ export function ParentGate() {
     }
 
     setBusy(true)
+    setSmsPending(true)
     setMessage(null)
     try {
       const appVerifier = await acquireRecaptcha()
       confirmationRef.current = await signInWithPhoneNumber(auth, phone, appVerifier)
       setPhoneInput(phone)
+      resetRecaptcha()
+      setRecaptchaReady(false)
+      setRecaptchaSolved(false)
       setStep('otp')
     } catch (error) {
       if (import.meta.env.DEV) console.error('Phone auth send failed:', error)
@@ -150,14 +155,16 @@ export function ParentGate() {
       }
     } finally {
       setBusy(false)
+      setSmsPending(false)
     }
   }
 
   useEffect(() => {
-    if (!existingPhone || !recaptchaReady || autoSendStartedRef.current) return
+    if (!linkedPhone || !recaptchaReady || autoSendStartedRef.current) return
     autoSendStartedRef.current = true
-    void sendOtp(existingPhone)
-  }, [existingPhone, recaptchaReady])
+    setPhoneInput(linkedPhone)
+    void sendOtp(linkedPhone)
+  }, [linkedPhone, recaptchaReady])
 
   const verifyOtp = async (code: string) => {
     if (busy) return
@@ -223,7 +230,8 @@ export function ParentGate() {
     useAppStore.getState().setMode('child')
   }
 
-  const displayPhone = existingPhone ?? phoneInput
+  const displayPhone = phoneInput
+  const awaitingSms = step === 'otp' && smsPending
   const phoneReady = recaptchaReady && recaptchaSolved && !busy
 
   return (
@@ -272,11 +280,9 @@ export function ParentGate() {
                 />
               )}
 
-              <div
-                id={RECAPTCHA_CONTAINER_ID}
-                className={`quivo-recaptcha-host${step === 'phone' ? '' : ' quivo-recaptcha-host--hidden'}`}
-                aria-hidden={step !== 'phone'}
-              />
+              {step === 'phone' && (
+                <div id={RECAPTCHA_CONTAINER_ID} className="quivo-recaptcha-host" />
+              )}
 
               {step === 'phone' && (
                 <>
@@ -314,10 +320,15 @@ export function ParentGate() {
                   </div>
                 )}
                 <PinKeypad
-                  disabled={busy}
+                  disabled={busy || awaitingSms}
                   onDigit={handleDigit}
                   onBackspace={handleBackspace}
                 />
+                {awaitingSms && (
+                  <p className="t-caption" style={{ marginTop: 8 }} role="status">
+                    Sending a new code…
+                  </p>
+                )}
                 <Button
                   variant="ghost"
                   size="md"
